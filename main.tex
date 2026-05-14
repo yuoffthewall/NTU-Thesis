@@ -4,7 +4,7 @@
 
 \documentclass[
   twoside,
-  openright,
+  openany,
   degree    = master,               % degree = master | doctor
   language  = english,              % language = chinese | english
   fontset   = template,             % fontset = default | template | system | overleaf
@@ -15,6 +15,10 @@
 \input{ntusetup}
 
 \begin{document}
+
+% openany document: collapse \cleardoublepage to \clearpage so the
+% template's TOC/LOF/LOT macros do not force blank verso pages.
+\let\cleardoublepage\clearpage
 
 % 封面與口試審定
 % Cover and Verification Letter
@@ -32,7 +36,7 @@
 \maketableofcontents                % 目錄（Table of Contents）
 \makelistoffigures                  % 圖目錄（List of Figures）
 \makelistoftables                   % 表目錄（List of Tables）
-\input{front/denotation}            % 符號列表（Denotation）
+% \input{front/denotation}            % 符號列表（Denotation）
 
 % 論文內容
 % Contents of Thesis
@@ -40,8 +44,8 @@
 \input{contents/chapter01}
 \input{contents/chapter02}
 \input{contents/chapter03}
-\input{contents/chapter03}
 \input{contents/chapter04}
+\input{contents/chapter05}
 
 % 參考文獻
 % References

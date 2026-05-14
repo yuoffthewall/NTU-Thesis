@@ -1,26 +1,84 @@
 % !TeX root = ../main.tex
 
-\chapter{中國文學}
+\chapter{Background and Related Work}
+\label{ch:background}
 
-\section{出師表}
+This chapter provides the technical background on which the rest of the thesis builds. Section~\ref{sec:bg:wasm} reviews the WebAssembly execution model. Section~\ref{sec:bg:wasmedge} describes the WasmEdge runtime and its existing compile paths. Section~\ref{sec:bg:llvm-cost} characterizes the cost profile of LLVM-based compilation, which motivates the tiered architecture. Section~\ref{sec:bg:ir-lib} introduces the lightweight SSA-based JIT library used as the tier-1 code generator. Section~\ref{sec:bg:tiered} summarizes the principles of tiered compilation. Section~\ref{sec:bg:related} surveys related work.
 
-臣亮言：先帝創業未半，而中道崩殂。今天下三分，益州疲弊，此誠危急存亡之秋也。然侍衛之臣，不懈於內；忠志之士，忘身於外者，蓋追先帝之殊遇，欲報之於陛下也。誠宜開張聖聽，以光先帝遺德，恢弘志士之氣；不宜妄自菲薄，引喻失義，以塞忠諫之路也。宮中府中，俱為一體，陟罰臧否，不宜異同。若有作姦犯科，及為忠善者，宜付有司，論其刑賞，以昭陛下平明之治，不宜篇私，使內外異法也。\par
+\section{The WebAssembly Execution Model}
+\label{sec:bg:wasm}
 
-侍中、侍郎郭攸之、費褘、董允等，此皆良實，志慮忠純，是以先帝簡拔以遺陛下。愚以為宮中之事，事無大小，悉以咨之，然後施行，必能裨補闕漏，有所廣益。將軍向寵，性行淑均，曉暢軍事，試用於昔日，先帝稱之曰「能」，是以眾議舉寵為督。愚以為營中之事，悉以咨之，必能使行陣和睦，優劣得所。親賢臣，遠小人，此先漢所以興隆也；親小人，遠賢臣，此後漢所以傾頹也。先帝在時，每與臣論此事，未嘗不歎息痛恨於桓、靈也。侍中、尚書、長史；參軍，此悉貞良死節之臣也，願陛下親之信之，則漢室之隆，可計日而待也。
+WebAssembly is a low-level bytecode format designed for portable, sandboxed execution. A WebAssembly module is a binary container divided into typed sections: function signatures, function bodies, imports, exports, tables, linear memories, globals, and an initialization section for elements and data. The binary is validated in a single pass before any instruction executes. Validation rules guarantee that well-formed modules cannot trap from type errors, mis-aligned operands, or out-of-bounds branches.
 
-臣本布衣，躬耕於南陽，苟全性命於亂世，不求聞達於諸侯。先帝不以臣卑鄙，猥自枉屈，三顧臣於草廬之中，諮臣以當世之事，由是感激，遂許先帝以驅馳。後值傾覆，受任於敗軍之際，奉命於危難之間，爾來二十有一年矣！先帝知臣謹慎，故臨崩寄臣以大事也。受命以來，夙夜憂勤，恐託付不效，以傷先帝之明。故五月渡瀘，深入不毛。今南方已定，兵甲已足，當獎率三軍，北定中原，庶竭駑鈍，攘除奸凶，興復漢室，還於舊都；此臣所以報先帝而忠陛下之職分也。至於斟酌損益，進盡忠言，則攸之、褘、允之任也。
+WebAssembly defines a stack-based virtual machine. Each instruction either consumes typed operands from the operand stack and produces a typed result, or alters control flow. The instruction set covers integer and floating-point arithmetic, comparisons, memory load and store, function calls, and structured control. The MVP specification is augmented by feature proposals that this thesis targets: reference types, bulk-memory operations, table operations, and SIMD.
 
-願陛下託臣以討賊興復之效；不效，則治臣之罪，以告先帝之靈。若無興德之言，則戮允等，以彰其慢。陛下亦宜自課，以諮諏善道，察納雅言，深追先帝遺詔，臣不勝受恩感激。
+A module's defined functions, together with its imported functions, form an indexed function space. Direct calls reference these functions by index. Indirect calls reference a function pointer through a typed table, and the runtime checks the table entry's signature against the call site's expected signature at run time. Tables support host-controlled writes and runtime growth.
 
-今當遠離，臨表涕泣，不知所云。
+Linear memory is a byte-addressable buffer that grows in fixed-size pages. Load and store instructions specify a base address and a static offset. The runtime is required to bounds-check every access and to trap on a violation. Linear memory is not shared with the host process address space. This isolation is the foundation of WebAssembly's sandboxing guarantee.
 
-\section{短歌行}
+Control flow is structured rather than free-form. Blocks, loops, and conditionals open scopes that can be exited only through labelled branch instructions, and every branch target is a syntactic structure visible from the branch instruction. The restriction simplifies validation. The restriction also gives optimizing compilers a regular control-flow shape on which to operate.
 
-對酒當歌，人生幾何！譬如朝露，去日苦多。
-慨當以慷，憂思難忘。何以解憂？唯有杜康。
-青青子衿，悠悠我心。但為君故，沉吟至今。
-呦呦鹿鳴，食野之苹。我有嘉賓，鼓瑟吹笙。
-明明如月，何時可掇？憂從中來，不可斷絕。
-越陌度阡，枉用相存。契闊談宴，心念舊恩。
-月明星稀，烏鵲南飛。繞樹三匝，何枝可依？
-山不厭高，海不厭深。周公吐哺，天下歸心。
+A module instance is a runtime materialization of a module against a specific store, with concrete function instances, table instances, memory instances, and global instances bound. Multiple module instances of the same module may coexist with independent state. Host functions---functions implemented by the embedder rather than by the wasm bytecode---are imported into the module instance through the same indexed function space as defined wasm functions. Call sites therefore do not distinguish between defined functions and host functions.
+
+\section{The WasmEdge Runtime}
+\label{sec:bg:wasmedge}
+
+WasmEdge is an open-source WebAssembly runtime hosted by the Cloud Native Computing Foundation. The runtime targets cloud-native and edge deployments and is used in production by ByteDance, Microsoft, Sony, and others. Its codebase implements the full WebAssembly MVP specification, every standardized extension that the proposals working group has accepted, and several WASI standards.
+
+WasmEdge provides three execution paths for a parsed and validated module. The interpreter walks the wasm bytecode directly, dispatching one instruction per loop iteration through a switch over the opcode. The interpreter is the simplest of the three paths and the slowest. It exists for correctness reference, for environments in which JIT-compiled code is unwelcome, and for kernels and instructions for which the compiled paths have not been implemented.
+
+The two compiled paths share a common front end. WasmEdge's LLVM front end translates wasm bytecode to LLVM intermediate representation. It lowers wasm operations to typed LLVM operations, wasm structured control to LLVM basic blocks, and wasm linear memory accesses to LLVM loads and stores with explicit bounds-check guards. The front end is reused by both compiled paths and is therefore the runtime's single source of wasm semantic lowering.
+
+The ahead-of-time path runs the front end at build time. The resulting LLVM module is compiled to a shared object that the runtime loads back at module instantiation. The shared object bypasses the front end entirely on the loading thread, so cold start is dominated by file I/O and dynamic linking rather than by compilation. The path is intended for production deployments in which the wasm module is known in advance and can be compiled once.
+
+The just-in-time path runs the same front end at module instantiation. The resulting LLVM module is passed through LLVM's optimization pipeline and its just-in-time machine code emitter, and the produced function pointers are bound into the module instance. The path produces code of comparable quality to the ahead-of-time path. The path also pays the full LLVM compile cost on every cold start. That cost is the bottleneck this thesis addresses.
+
+All three paths share the same module-instance representation and the same host-call dispatch boundary. A wasm-to-host call lands in a stub that marshals arguments from the wasm convention into the host's native convention and back. A host-to-wasm call goes through the runtime's executor to ensure that the trap state and stack guards are correctly maintained. The shared boundary is what allows this thesis to introduce a new compiled path---the tier-1 baseline JIT and selective tier-2 promotion---without changes to the executor's external interfaces.
+
+\section{LLVM Compilation Cost}
+\label{sec:bg:llvm-cost}
+
+LLVM is a mature, production-grade optimizing compiler infrastructure. Its optimization pipeline at \texttt{O2} and above is comparable in coverage and aggressiveness to the optimizing tiers of major language compilers. The pipeline is also expensive. The cost has three sources.
+
+The first source is the size of the pipeline itself. LLVM at \texttt{O2} runs dozens of analysis and transformation passes over the intermediate representation, including inlining, loop transformations, vectorization, and global value numbering. The passes operate on a single intermediate representation that is repeatedly rewritten as each transformation fires. Each pass adds constant overhead even on inputs it does not transform, because the analysis it depends on must still execute.
+
+The second source is the size of the input. Compile time scales roughly linearly with the number of LLVM instructions, but specific passes scale superlinearly. Inlining and global value numbering are common offenders: their cost grows with both the number of call sites and the size of inlined bodies. A WebAssembly module with thousands of functions and tens of thousands of LLVM instructions per function exposes both kinds of growth.
+
+The third source is memory footprint. The optimization pipeline holds the entire module in memory and rewrites it in place. Analyses build derived data structures that may rival the module itself in size. The footprint matters because edge deployments routinely run on hosts provisioned with one or two gigabytes of memory across the entire workload, of which compilation may consume a noticeable fraction.
+
+The three sources combine to produce a compile-cost profile that is acceptable when paid once at build time on the AOT path, but is structurally unsuited to a cold-start path. The tiered architecture in Chapter~\ref{ch:design} reduces the up-front cost by routing the cold path through a much smaller code generator and reserving LLVM for the small subset of functions that benefit from its optimization budget.
+
+\section{A Lightweight SSA-Based JIT Library}
+\label{sec:bg:ir-lib}
+
+This thesis adopts \emph{dstogov/ir}, an open-source SSA-based JIT library originally developed for the PHP language's just-in-time compiler, as the tier-1 code generator. The library represents one design point on the trade-off between code quality and compile latency. It is structured around a small, fixed sequence of SSA optimizations and a linear-scan register allocator, with a single-pass builder API that emits SSA nodes one at a time.
+
+The optimization sequence covers the basics. A memory-to-SSA pass converts memory locations that behave like registers into SSA values. A sparse conditional-constant-propagation pass folds branches and arithmetic on known constants. A global code-motion pass hoists loop-invariant computations and sinks expressions out of hot blocks. A scheduling pass orders instructions for the back end. A linear-scan register allocator then assigns SSA values to physical registers. The sequence is fixed: there is no pass manager, no opt-level abstraction, and no extension point for analyses that re-traverse the IR.
+
+The fixed sequence is the source of the library's two attractive properties for a baseline JIT. Compile latency is bounded and predictable, because the cost of every pass scales linearly with the function size. The library's source code is small enough to vendor into the runtime and modify when a behavioural change is required. Both properties are essential to the tier-1 design described in Chapter~\ref{ch:design}: the runtime needs predictable compile cost on the cold path, and the thesis relies on the freedom to extend the library with backend changes that the project might not accept upstream.
+
+The trade-off is code quality. The library does not perform inlining, does not vectorize, and does not run iterative dataflow analyses beyond the fixed sequence. Its output is competitive with a non-optimizing reference compiler and an order of magnitude below LLVM at \texttt{O2}. This gap is precisely the gap the tier-2 path closes for hot functions.
+
+\section{Tiered Compilation Principles}
+\label{sec:bg:tiered}
+
+Tiered compilation is the design strategy of using two or more compilers of different cost-and-quality profiles to compile the same program, with profile information directing which compiler runs on which function. The strategy is established in production language runtimes for one consistent reason: the distribution of execution time across the functions of a typical program is highly skewed, and a single optimizing compiler spends most of its compile budget on functions that contribute little to run-time.
+
+A baseline tier produces native code for every defined function at low compile cost. The output is correct and reasonably fast, but does not benefit from heavy optimization. Common baseline-tier designs use a template-based code generator that emits per-opcode native sequences from a fixed pattern table, or a lightweight SSA-based code generator with a small fixed optimization sequence. The baseline tier is what eliminates the cold-start gap. The runtime can begin executing the program as soon as parsing and the baseline compile complete.
+
+An optimizing tier produces code of significantly higher quality at significantly higher compile cost. The tier is engaged selectively. Only functions identified as worth the cost are recompiled, and the identification is driven by profile information collected from the baseline tier's executing code. The optimizing tier delivers steady-state performance comparable to a single-tier optimizing compiler, but only for code that actually runs hot.
+
+Profile information takes the form of counters embedded in baseline-tier code. A per-function call counter increments on each entry to the function; when it crosses a threshold, the function is queued for optimizing-tier compilation. A per-loop back-edge counter increments on each loop iteration; when it crosses a threshold, the executing function is marked as containing a hot loop. The two counter classes target the two invocation shapes that matter: a frequently-called function and a long-running loop within a single invocation.
+
+Promotion takes one of two forms. \emph{Function-entry promotion} swaps the dispatch entry for a function from its baseline-tier address to its optimizing-tier address, so that subsequent direct or indirect calls reach the optimized body. The currently-executing frame, if any, continues to run baseline-tier code, because the frame has already passed through the prologue. \emph{On-stack replacement} migrates an executing frame mid-function into an optimizing-tier continuation entry. The continuation entry is compiled with the loop header as the function entry point and the wasm-level state of the frame as input. On-stack replacement matters when a function is called once and spends nearly all its execution inside a loop; function-entry promotion delivers no speedup on such workloads.
+
+The optimizing tier's compile cost must not block user code. Production tiered runtimes therefore run optimizing-tier compilation asynchronously on one or more worker threads. The user thread executes baseline-tier code, accumulates profile information, and notifies a worker on threshold crossings. The worker compiles and atomically publishes the result through a shared lookup table. Atomic publication ensures that concurrent callers either observe the baseline-tier pointer or the optimizing-tier pointer, never an intermediate state.
+
+The architecture described in Chapter~\ref{ch:design} instantiates these principles for WasmEdge: a lightweight SSA-based baseline tier, a selective recompilation tier driven by the existing LLVM front end, profile counters embedded in baseline-tier bodies, both function-entry promotion and on-stack replacement, and an asynchronous worker thread with atomic publication into a shared dispatch table.
+
+\section{Related Work}
+\label{sec:bg:related}
+
+% Placeholder: related work survey to be drafted.
+
+This section will survey prior tiered compilation systems in JavaScript engines (V8, JavaScriptCore, SpiderMonkey), Wasm runtimes (Wasmtime, V8's Liftoff, JavaScriptCore's BBQ), the on-stack replacement mechanism introduced in HotSpot and adopted across modern managed runtimes, and lightweight SSA-based JIT libraries beyond dstogov/ir.

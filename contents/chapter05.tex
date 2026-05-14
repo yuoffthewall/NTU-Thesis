@@ -1,0 +1,37 @@
+% !TeX root = ../main.tex
+
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+\section{Summary}
+\label{sec:conclusion:summary}
+
+This thesis presents a tiered compilation architecture for WasmEdge. The architecture decouples startup latency from peak code quality by routing the cold path through a lightweight SSA-based baseline JIT, then selectively recompiling hot functions with the existing WasmEdge LLVM frontend on a background worker thread. A profile-driven promotion mechanism replaces baseline-tier entries with optimizing-tier entries atomically; an on-stack replacement mechanism migrates in-flight tier-1 frames into optimizing-tier continuation entries mid-loop.
+
+Three contributions support the architecture. The first is a tier-1 baseline JIT that integrates a third-party lightweight SSA library into WasmEdge as a compile-every-function pathway, with embedded per-function and per-loop profile counters and a uniform two-argument calling convention that unifies wasm-defined functions, host imports, and indirect-call targets. The second is a tier-2 selective recompilation pipeline that reuses the existing LLVM frontend through per-batch mini-module synthesis, three ABI bridge thunks that reconcile the tier-1 and LLVM calling conventions, a compile-ordering invariant that preserves cross-tier call sites for post-processing rewriting, and a batch composition algorithm that walks up the static call graph from the threshold-tripping leaf and admits direct callees under a two-test gate. The third is an on-stack replacement mechanism that instruments outermost-loop back-edges with a three-state diamond, lifts wasm locals into the continuation entry's parameter list, and bails out structurally on loops whose surrounding control flow cannot be safely re-entered mid-execution.
+
+The architecture is implemented in WasmEdge and evaluated on the sightglass-strong benchmark suite---a strengthened variant of the upstream sightglass suite, tuned so that each kernel's tier-1 run-time lands in a 5- to 10-second band that gives tier-2 a measurable post-swap runway. Across the thirty-one analyzed kernels, the full configuration delivers a geometric-mean speedup of 1.12$\times$ over the tier-1 baseline and recovers approximately 92\% of whole-module LLVM JIT throughput, while reducing instantiation latency by a factor of eleven on average. The step-by-step evaluation isolates the contribution of each mechanism: the walk-up batch composition rescues hot-leaf workloads from 0.79$\times$ to 0.88$\times$ of LLVM JIT throughput, and on-stack replacement closes the residual gap on one-shot-caller workloads, lifting kernels like \texttt{shootout-random}, \texttt{shootout-ctype}, and \texttt{blind-sig} from below 0.65$\times$ to within a few percent of the LLVM JIT baseline.
+
+\section{Limitations}
+\label{sec:conclusion:limitations}
+
+The architecture has three structural limitations.
+
+\paragraph{Scalar-only promotion filter.} The current OSR continuation synthesis filters out loops whose live wasm locals include vector (\texttt{v128}) or reference-type values. The filter is conservative; it rejects loops that the underlying mechanism could handle once the local-serialization buffer is extended to type-native widths beyond scalar integers and floats. Cryptographic and image-processing kernels that rely on SIMD therefore do not benefit from OSR in the current implementation.
+
+\paragraph{No de-tiering.} Once a function or loop is promoted to tier-2, the architecture provides no path back to tier-1. The decision is one-way. For long-running modules in which the workload shape changes over time, this design choice leaves no recovery option if a tier-2 specialization becomes a poor fit for a later phase of execution. The choice reflects a simplicity-versus-completeness trade-off appropriate to the cold-start use case the thesis targets, where the workload is typically short-lived.
+
+\paragraph{x86-64 host support only.} The tier-1 SSA backend, the OSR continuation synthesis, and the ABI bridge thunks are all implemented and tested on x86-64. The underlying SSA backend supports aarch64, and the thesis's modifications are largely architecture-neutral, but no aarch64 port has been validated. Edge deployments on ARM-based hosts are therefore not yet covered.
+
+\section{Future Work}
+\label{sec:conclusion:future}
+
+Four directions extend the architecture.
+
+\paragraph{Vector and reference-type scope.} Extending the local-serialization buffer to type-native widths for \texttt{v128} and reference types removes the scalar-only OSR filter. The mechanical change is straightforward; the interaction with the IR backend's common-subexpression elimination, which dictates the type-native-width design in the scalar case, must be re-validated for the wider types.
+
+\paragraph{aarch64 port.} Validating the tier-1 backend, the ABI bridge thunks, and the OSR continuation synthesis on aarch64 brings ARM-based edge hosts into scope. The bridge thunks must be re-derived for the AAPCS64 calling convention, and the OSR continuation entry's parameter layout must be re-validated against the aarch64 backend's register allocator.
+
+\paragraph{Refcounted JIT cache for de-tiering.} Adding a refcounted cache for tier-1 native code, indexed by function index and held alive while any frame may still observe the code, opens a path to de-tiering. A function or loop incorrectly promoted under one workload shape could be reverted to tier-1 once the workload shape changes, and re-promoted later with updated profile information.
+
+\paragraph{Profile-guided batch policy.} The current batch composition uses a fixed walk-up depth and a fixed BFS bound. Profile information beyond the per-function and per-loop counters---call-site frequencies, branch biases, value profiles---could drive a more selective batch policy that includes the surrounding context only when the profile indicates it will be inlined or specialized to advantage. The expected gain is on workloads where the current batch is too small (kernels still below 0.80$\times$ LLVM JIT after Step 3) and where the current batch is too large (kernels where the worker spends compile cycles on cold paths that the optimizer cannot prune).

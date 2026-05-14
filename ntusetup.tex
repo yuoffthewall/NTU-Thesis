@@ -7,22 +7,23 @@
 \ntusetup{
   university*   = {National Taiwan University},
   university    = {國立臺灣大學},
-  college       = {工學院},
-  college*      = {College of Engineering},
-  institute     = {工業工程學研究所},
-  institute*    = {Department of Industrial Engineering}, % 請確認您的科系為Department of xxx或Institute of xxx
-  title         = {國立臺灣大學碩博士畢業論文模版},
-  title*        = {National Taiwan University (NTU) \\ Thesis/Dissertation Template in \LaTeX},
-  author        = {彭新翔},
-  author*       = {Hsin-Hsiang Peng},
-  ID            = {R05546030},
-  advisor       = {吳文方},
-  advisor*      = {Wen-Fang Wu},
-  date          = {2020-05-01},         % 若註解掉，則預設為當天
-  oral-date     = {2020-05-01},         % 若註解掉，則預設為當天
+  college       = {電機資訊學院},
+  college*      = {College of Electronical Engineering and Computer Science},
+  institute     = {資訊工程研究所},
+  institute*    = {Department of Computer Science an Information Engineering}, % 請確認您的科系為Department of xxx或Institute of xxx
+  title         = {應用於邊緣運算環境之低延遲 Wasm 執行時期分層編譯架構},
+  title*        = {A Tiered Compilation Architecture for Low-Latency Wasm Runtimes in Edge
+Computing Environments},
+  author        = {李祥宇},
+  author*       = {Hsiang-Yu Lee},
+  ID            = {R12922137},
+  advisor       = {廖世偉},
+  advisor*      = {Shih-Wei Liao},
+  %date          = {2020-05-01},         % 若註解掉，則預設為當天
+  %oral-date     = {2020-05-01},         % 若註解掉，則預設為當天
   DOI           = {10.5566/NTU2018XXXXX},
-  keywords      = {LaTeX, 中文, 論文, 模板},
-  keywords*     = {LaTeX, CJK, Thesis, Template},
+  keywords      = {WebAssembly, 即時編譯, 分層編譯, 在堆疊替換, 邊緣運算, WasmEdge},
+  keywords*     = {WebAssembly, just-in-time compilation, tiered compilation, on-stack replacement, edge computing, WasmEdge},
 }
 
 % --------------------------------------------------
@@ -42,6 +43,55 @@
 
 \usepackage{lipsum}                     % 英文亂字
 \usepackage{zhlipsum}                   % 中文亂字
+
+\usetikzlibrary{positioning}            % tikz: relative-position syntax (below=of, etc.)
+
+\usepackage{algorithm}                  % algorithm float environment
+\usepackage{algpseudocode}              % algorithmic pseudocode (\State, \If, \While, ...)
+\usepackage{listings}                   % verbatim code listings with captions
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  captionpos=b,
+  frame=single,
+  showstringspaces=false,
+}
+
+% --------------------------------------------------
+% TOC and section-numbering overrides
+% --------------------------------------------------
+
+% TOC includes chapters, sections, and subsections.
+\setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{2}
+
+% A package in the load chain (likely titletoc / tocloft) bypasses tocdepth
+% for \paragraph and adds every \paragraph heading to the TOC regardless of
+% the tocdepth setting. Redefine \paragraph to invoke its starred form
+% unconditionally: same visual appearance (bold run-in head), no TOC entry.
+\let\origparagraph\paragraph
+\renewcommand{\paragraph}[1]{\origparagraph*{#1}}
+
+% --------------------------------------------------
+% Appendix command override
+% --------------------------------------------------
+
+% The class's \appendix renames \thechapter to the appendix letter but does
+% not increment the underlying chapter counter, so each appendix's section
+% anchors collide (every appendix's first section has anchor section.N.1
+% for the same N). Override to refstep the chapter counter so each appendix
+% has a unique anchor namespace, while still printing the appendix letter
+% as the chapter label.
+\makeatletter
+\renewcommand{\appendix}[2]{
+  \refstepcounter{chapter}
+  \chapter*{\ntu@appendix~{#1}~---~#2}
+  \phantomsection
+  \addcontentsline{toc}{chapter}{\ntu@appendix~{#1}~---~#2}
+  \setcounter{section}{0}
+  \renewcommand{\thechapter}{#1}
+}
+\makeatother
 
 % --------------------------------------------------
 % 套件設定（Packages Settings）

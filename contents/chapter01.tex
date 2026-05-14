@@ -1,47 +1,54 @@
 % !TeX root = ../main.tex
 
-\chapter{中國文學}
+\chapter{Introduction}
+\label{ch:introduction}
 
-\section{出師表}
+\nocite{*}  % TODO: remove once real \cite{} calls exist
 
-\begingroup
-\centering
+\section{Motivation}
+\label{sec:intro:motivation}
 
-\begin{tabular}{ll}
-What & is \\
-this & doing? \\
-\end{tabular}
-\captionsetup{type=table}
-\captionof{table}{A nice table}\label{tbl:nicetablelesstable}
-\endgroup
+Edge computing has shifted general-purpose computation from centralized data centers toward devices and points-of-presence located close to data sources and end users. Two pressures shape the workloads that run in this regime. The first is a tight per-request latency budget: tail latencies in the tens of milliseconds are routinely required for interactive content delivery, real-time inference, and request-handling at the network edge. The second is a tight per-host resource budget. Edge nodes are typically provisioned with substantially less CPU, memory, and energy headroom than data-center servers. The workload mix is dominated by short-lived, stateless functions that frequently start and exit.
 
-臣亮言：先帝創業未半，而中道崩殂。今天下三分，益州疲弊，此誠危急存亡之秋也。然侍衛之臣，不懈於內；忠志之士，忘身於外者，蓋追先帝之殊遇，欲報之於陛下也。誠宜開張聖聽，以光先帝遺德，恢弘志士之氣；不宜妄自菲薄，引喻失義，以塞忠諫之路也。宮中府中，俱為一體，陟罰臧否，不宜異同。若有作姦犯科，及為忠善者，宜付有司，論其刑賞，以昭陛下平明之治，不宜篇私，使內外異法也。\par
+WebAssembly (Wasm) has emerged as the deployment vehicle for these workloads. Its compact binary format, language-agnostic toolchain, sandboxed execution model, and predictable resource semantics make it well suited to multi-tenant environments in which untrusted code must be loaded, executed, and torn down at high frequency. Production systems including Fastly Compute@Edge, Cloudflare Workers, and Fermyon Spin embed Wasm runtimes for exactly this reason. The class of workloads these systems target is one for which startup latency is as critical as steady-state throughput: a serverless function invoked once and discarded pays the full cost of compilation before producing any user-visible output.
 
-侍中、侍郎郭攸之、費褘、董允等，此皆良實，志慮忠純，是以先帝簡拔以遺陛下。愚以為宮中之事，事無大小，悉以咨之，然後施行，必能裨補闕漏，有所廣益。將軍向寵，性行淑均，曉暢軍事，試用於昔日，先帝稱之曰「能」，是以眾議舉寵為督。愚以為營中之事，悉以咨之，必能使行陣和睦，優劣得所。親賢臣，遠小人，此先漢所以興隆也；親小人，遠賢臣，此後漢所以傾頹也。先帝在時，每與臣論此事，未嘗不歎息痛恨於桓、靈也。侍中、尚書、長史；參軍，此悉貞良死節之臣也，願陛下親之信之，則漢室之隆，可計日而待也。
+WasmEdge is an open-source Wasm runtime developed under the Cloud Native Computing Foundation and adopted in production by ByteDance, Microsoft, Sony, and others. Its compile path uses LLVM end-to-end for both ahead-of-time (AOT) and just-in-time (JIT) compilation. LLVM produces highly optimized machine code. Its optimization pipeline includes mid-level inlining, loop transformations, vectorization, and global register allocation. The result is throughput close to native C compilation on computationally intensive workloads. These optimizations come at a cost. LLVM's compile-time profile scales poorly with module size, and its memory footprint during compilation is substantial. On the resource-constrained hosts and short-lived functions that characterize edge deployments, paying this cost on every invocation forces a structural trade-off: the runtime cannot deliver low-latency startup without sacrificing peak code quality.
 
-臣本布衣，躬耕於南陽，苟全性命於亂世，不求聞達於諸侯。先帝不以臣卑鄙，猥自枉屈，三顧臣於草廬之中，諮臣以當世之事，由是感激，遂許先帝以驅馳。後值傾覆，受任於敗軍之際，奉命於危難之間，爾來二十有一年矣！先帝知臣謹慎，故臨崩寄臣以大事也。受命以來，夙夜憂勤，恐託付不效，以傷先帝之明。故五月渡瀘，深入不毛。今南方已定，兵甲已足，當獎率三軍，北定中原，庶竭駑鈍，攘除奸凶，興復漢室，還於舊都；此臣所以報先帝而忠陛下之職分也。至於斟酌損益，進盡忠言，則攸之、褘、允之任也。
+A second observation complicates the single-tier design. Within a typical Wasm module, the distribution of execution time across functions is highly skewed: a small fraction of functions accounts for the bulk of run-time, while the remainder execute infrequently or not at all. Compiling every function with LLVM-grade optimization spends most of the compile budget on code that will not run hot. Cold or rarely-executed code receives optimization it does not need, and the compilation latency imposed on hot code delays the program from reaching its hot path.
 
-願陛下託臣以討賊興復之效；不效，則治臣之罪，以告先帝之靈。若無興德之言，則戮允等，以彰其慢。陛下亦宜自課，以諮諏善道，察納雅言，深追先帝遺詔，臣不勝受恩感激。
+This pattern is well-established in the design of high-performance language runtimes. Modern JavaScript engines---V8, JavaScriptCore, SpiderMonkey---all employ tiered compilation. A fast baseline tier produces native code for every function with minimal optimization. One or more optimizing tiers then selectively recompile hot code with progressively heavier optimization, guided by run-time profile information. The baseline tier eliminates the cold-start gap; the optimizing tier delivers steady-state performance comparable to a single-tier optimizing compiler. Wasm runtimes built atop these engines, including V8's Liftoff and JavaScriptCore's BBQ tier, follow the same architecture. WasmEdge does not. The runtime currently lacks a baseline JIT, lacks a profile-driven promotion mechanism, and lacks a mid-execution code-replacement pathway. The cold-start bottleneck observed in production is a direct consequence of this architectural gap.
 
-今當遠離，臨表涕泣，不知所云。
+\section{Problem Statement}
+\label{sec:intro:problem}
 
-\section{短歌行}
+This thesis addresses the absence of a tiered compilation infrastructure in WasmEdge. The goal is to introduce an architecture that decouples startup latency from peak code quality, while preserving the steady-state performance that LLVM-compiled code achieves on hot workloads. Three concrete sub-problems constitute this goal.
 
-對酒當歌，人生幾何！譬如朝露，去日苦多。
-慨當以慷，憂思難忘。何以解憂？唯有杜康。
-青青子衿，悠悠我心。但為君故，沉吟至今。
-呦呦鹿鳴，食野之苹。我有嘉賓，鼓瑟吹笙。
-明明如月，何時可掇？憂從中來，不可斷絕。
-越陌度阡，枉用相存。契闊談宴，心念舊恩。
-月明星稀，烏鵲南飛。繞樹三匝，何枝可依？
-山不厭高，海不厭深。周公吐哺，天下歸心。
+\paragraph{Baseline tier.} The runtime requires a compiler that produces native code for every wasm function at low cost at module load time. The compiler must integrate with WasmEdge's existing runtime contracts---linear memory layout, table dispatch, host-call boundaries, trap handling, and the function-instance store---without disturbing the LLVM AOT path. It must lower the full set of MVP WebAssembly instructions plus the reference-type, bulk-memory, and table extensions used by sightglass and real workloads. It must produce code of sufficient quality that the resulting steady-state performance is acceptable until tier-2 compilation completes. A lightweight SSA-based code generator with linear-scan register allocation is an established design point that meets these constraints.
 
-\section{始得西山宴遊記}
+\paragraph{Optimizing tier.} The runtime requires a path that recompiles hot wasm functions with LLVM-grade optimization, but only after profile information has identified them as worth the compile cost. Reimplementing WasmEdge's existing wasm-to-LLVM lowering is undesirable: the LLVM frontend is mature, well-tested, and already encodes the module-level lowering logic that selective recompilation also requires. Two challenges arise. The first is to drive the existing LLVM frontend with input that contains only the hot functions, while preserving the call-graph structure on which the frontend's call lowering depends. The second is to bridge the resulting LLVM-compiled code into the baseline tier's calling convention so that mixed-tier dispatch is correct. The promotion mechanism must run asynchronously to user code so that LLVM's compile latency is hidden from the request-handling path, and the published code must replace the baseline-tier entry atomically with respect to concurrent callers.
 
-自余爲僇人，居是州，恆惴慄。其隙也，則施施而行，漫漫而遊。日與其徒上高山，入深林，窮回溪；幽泉怪石，無遠不到。到則披草而坐，傾壺而醉，醉則更相枕以臥，臥而夢。意有所極，夢亦同趣。覺而起，起而歸。以爲凡是州之山有異態者，皆我有也，而未始知西山之怪特。
+\paragraph{In-flight migration.} Function-entry promotion alone is insufficient for an important class of workloads. Consider a function called once that spends the bulk of its execution inside a single long-running loop. This is the shape of cryptographic kernels, parsing loops, and many serverless request handlers. The function never re-enters its prologue after the counter saturates, so the entry-table swap delivers no speedup on the in-flight invocation. Closing this gap requires a mechanism that detects when an executing tier-1 frame has crossed a hotness threshold inside a loop, migrates the frame's wasm-level state into a tier-2 continuation entry, and transfers control mid-execution. The mechanism must coexist with function-entry promotion, must impose negligible overhead in the steady state once it has fired, and must preserve wasm semantics across the transition.
 
-今年九月二十八日，因坐法華西亭，望西山，始指異之。遂命僕人過湘江，緣染溪，斫榛莽，焚茅茷，窮山之高而止。攀援而登，箕踞而遨，則凡數州之土壤，皆在衽席之下
+Each sub-problem presents system-level challenges that go beyond the compilation algorithm itself. The list includes the choice of profile representation and storage, concurrent publication of native code, lifetime management of code caches that outlive their compiling thread, and the interaction between tier-1 and tier-2 calling conventions on the indirect-call paths that Wasm modules use heavily. The remainder of this thesis presents a design that resolves each of these constraints, an implementation in WasmEdge, and an evaluation of the resulting system.
 
-其高下之勢，岈然窪然，若垤若穴，尺寸千里，攢蹙累積，莫得遁隱；縈青繚白，外與天際，四望如一。然後知是山之特出，不與培塿爲類。悠悠乎與灝氣俱，而莫得其涯；洋洋乎與造物者遊，而不知其所窮。
+\section{Contributions}
+\label{sec:intro:contributions}
 
-引觴滿酌，頹然就醉，不知日之入，蒼然暮色，自遠而至，至無所見，而猶不欲歸。心凝形釋，與萬化冥合。然後知吾向之未始遊，遊於是乎始，故爲之文以志。是歲，元和四年也。
+This thesis makes the following contributions.
+
+\begin{enumerate}
+  \item \textbf{A baseline JIT tier (Tier-1) for WasmEdge.} The proposed tier integrates a lightweight SSA-based JIT backend as a compile-every-function pathway invoked at module instantiation. A uniform two-argument calling convention---an environment pointer and a slot-typed argument buffer---unifies wasm-defined functions, host imports, and indirect-call targets behind a single dispatch shape. The tier lowers the full MVP WebAssembly instruction set and the reference-type, bulk-memory, and table extensions, and runs the backend's standard SSA optimization sequence. The tier additionally embeds two classes of profile instrumentation---per-function call counters in the function prologue and per-loop back-edge counters at outermost-loop back-edges---into the same compiled bodies, so that profile collection imposes no additional indirection on the hot path.
+
+  \item \textbf{A selective LLVM-frontend recompilation tier (Tier-2).} The proposed tier reuses the existing WasmEdge LLVM frontend by synthesizing per-batch mini-modules in which non-batch function bodies are replaced by trivial default-return stubs. The mini-module compiles through the frontend unoptimized. A post-processing pass then installs three ABI bridge thunks---\texttt{fwd\_thunk}, \texttt{t1\_thunk}, and \texttt{entry\_thunk}---to bridge between the tier-1 calling convention and the LLVM frontend's calling convention on every cross-tier dispatch path, prunes unreferenced stubs to bound the cost of optimization, and only then runs an aggressive LLVM optimization pipeline before the JIT compiler emits native code. Batches are composed by walking up the static call graph from the leaf that triggered the threshold and performing a bounded breadth-first traversal of direct callees, with a static-frequency inclusion gate that admits structurally-hot siblings whose dynamic counters have not yet caught up.
+
+  \item \textbf{An on-stack replacement (OSR) mechanism for tier-1 to tier-2 migration.} The proposed mechanism instruments outermost-loop back-edges in tier-1 code with a three-state sentinel diamond on a per-loop slot of the \texttt{OsrEntryTable}: \emph{counting} (initial state, runs the back-edge counter), \emph{waiting} (notify already fired, fast-path fall-through with three operations per iteration), and \emph{ready} (continuation entry published, snapshot locals and tail-call). Continuation entries are synthesized by lifting wasm locals into the continuation's parameter list and starting the function body at the loop header. Loops whose surrounding control-flow chain cannot be safely re-entered mid-execution are rejected at synthesis time and fall back to the tier-1 path.
+
+  \item \textbf{Empirical evaluation.} The thesis evaluates the architecture on the sightglass benchmark suite, characterizing tier-1 baseline performance and compile cost relative to LLVM AOT, tier-2 effectiveness against tier-1 alone and against whole-module LLVM JIT, OSR's role on the one-shot-caller workloads where function-entry promotion alone is structurally inadequate, and the sensitivity of the architecture to its two principal threshold parameters.
+\end{enumerate}
+
+The architecture is implemented in WasmEdge and measured against the same sightglass kernels used to validate the existing LLVM AOT path, so that absolute performance and correctness are directly comparable to the runtime's existing baseline. All thirty-three sightglass-strong benchmark kernels pass at \texttt{O2} under the combined tier-1 + tier-2 + OSR configuration.
+
+\section{Thesis Organization}
+\label{sec:intro:organization}
+
+The remainder of this thesis is organized as follows. Chapter~\ref{ch:background} reviews the WebAssembly execution model, the WasmEdge runtime, the structural cost of LLVM compilation, the dstogov/ir library, the principles of tiered compilation, and prior work on tiered compilation in JavaScript and Wasm runtimes, on-stack replacement, and lightweight JIT libraries. Chapter~\ref{ch:design} presents the design of the proposed system: the architecture overview, the runtime context and calling conventions, the tier-1 baseline JIT, the tier-2 selective recompilation pipeline, and the on-stack replacement mechanism. Chapter~\ref{ch:evaluation} reports the evaluation: methodology, results across the three components, cold-start latency, and sensitivity sweeps. Chapter~\ref{ch:conclusion} concludes the thesis and discusses limitations and future work.
