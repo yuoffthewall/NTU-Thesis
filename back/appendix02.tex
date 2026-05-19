@@ -1,5 +1,513 @@
 % !TeX root = ../main.tex
 
-\appendix{B}{Sightglass-Strong Kernel Details}
+\appendix{B}{Raw Measurement Tables}
+\label{ch:appendix-raw}
 
-To be drafted: per-kernel strengthening table (category A internal-constant bumps, category B outer-loop-literal bumps, category C outer-loop wraps, and special-case adjustments) and raw per-kernel measurement tables for the three configurations evaluated in Chapter~\ref{ch:evaluation}.
+This appendix reproduces the per-kernel measurements that the geometric means and selected rows in Chapter~\ref{ch:evaluation} draw from. Every value is a three-run median. The kernel \texttt{noop} is included as a sanity row but is excluded from every geometric mean reported in the chapter. The bimodal kernel \texttt{shootout-ackermann} is included in each per-configuration table but is also excluded from the geometric means.
+
+All ratios follow the convention that values greater than one indicate a tier-2 win: \texttt{T1/T2} = tier-1 work-time divided by tier-2 work-time, \texttt{LLVM/T2} = whole-module LLVM JIT work-time divided by tier-2 work-time, and the same direction is used for the compile-time and \texttt{TtV} ratios.
+
+\section{LLVM JIT Baseline}
+\label{sec:appB:llvm}
+
+Whole-module LLVM JIT (\texttt{WASMEDGE\_SIGHTGLASS\_MODE=JIT}). These columns are the divisors for every \texttt{LLVM/T2} ratio in Sections~\ref{sec:appB:step1}--\ref{sec:appB:step3}.
+
+\begin{longtable}{l r r r}
+\caption{LLVM JIT baseline: WorkTime, compile time, and end-to-end \texttt{TtV}.}
+\label{tbl:appB:llvm}\\
+\toprule
+Kernel & WT ($\mu$s) & Comp (ms) & TtV (ms) \\
+\midrule
+\endfirsthead
+\multicolumn{4}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & WT ($\mu$s) & Comp (ms) & TtV (ms) \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+blake3-scalar & 5{,}200{,}415 & 687 & 5{,}882 \\
+blind-sig & 4{,}156{,}440 & 3{,}095 & 7{,}351 \\
+bz2 & 7{,}060{,}749 & 1{,}102 & 8{,}168 \\
+gcc-loops & 6{,}806{,}592 & 3{,}723 & 10{,}566 \\
+hashset & 4{,}940{,}947 & 1{,}991 & 6{,}903 \\
+image-classification & 2{,}784 & 2{,}599 & 2{,}667 \\
+pulldown-cmark & 2{,}179{,}733 & 1{,}915 & 4{,}099 \\
+quicksort & 6{,}805{,}066 & 215 & 7{,}024 \\
+regex & 8{,}603{,}822 & 4{,}993 & 13{,}614 \\
+richards & 732{,}598 & 75 & 810 \\
+rust-compression & 6{,}999{,}568 & 5{,}556 & 12{,}565 \\
+rust-html-rewriter & 879{,}841 & 4{,}711 & 5{,}595 \\
+rust-json & 2{,}181{,}605 & 1{,}760 & 3{,}945 \\
+rust-protobuf & 2{,}064{,}158 & 993 & 3{,}060 \\
+shootout-ackermann & 3{,}482{,}395 & 303 & 3{,}787 \\
+shootout-base64 & 6{,}596{,}252 & 281 & 6{,}879 \\
+shootout-ctype & 4{,}997{,}939 & 263 & 5{,}269 \\
+shootout-ed25519 & 4{,}852{,}592 & 2{,}517 & 7{,}371 \\
+shootout-fib2 & 5{,}665{,}627 & 205 & 5{,}869 \\
+shootout-gimli & 8{,}067{,}482 & 17 & 8{,}085 \\
+shootout-heapsort & 7{,}952{,}058 & 82 & 8{,}038 \\
+shootout-keccak & 6{,}859{,}866 & 517 & 7{,}378 \\
+shootout-matrix & 6{,}771{,}200 & 274 & 7{,}046 \\
+shootout-memmove & 2{,}645{,}052 & 284 & 2{,}926 \\
+shootout-minicsv & 1{,}464{,}896 & 54 & 1{,}519 \\
+shootout-nestedloop & 8{,}886{,}440 & 203 & 9{,}095 \\
+shootout-random & 4{,}372{,}971 & 203 & 4{,}576 \\
+shootout-ratelimit & 866{,}915 & 276 & 1{,}143 \\
+shootout-seqhash & 5{,}527{,}015 & 311 & 5{,}846 \\
+shootout-sieve & 7{,}173{,}303 & 198 & 7{,}372 \\
+shootout-switch & 9{,}016{,}662 & 954 & 9{,}980 \\
+shootout-xblabla20 & 2{,}530{,}955 & 288 & 2{,}820 \\
+shootout-xchacha20 & 7{,}966{,}930 & 280 & 8{,}248 \\
+spidermonkey-json & 65{,}747 & 90{,}669 & 90{,}880 \\
+spidermonkey-markdown & 36{,}193 & 89{,}981 & 90{,}142 \\
+spidermonkey-regex & 14{,}900 & 90{,}265 & 90{,}396 \\
+sqlite3 & 563{,}305 & 16{,}377 & 16{,}953 \\
+tinygo-json & 47{,}576 & 10{,}304 & 10{,}361 \\
+tinygo-regex & 5{,}337{,}782 & 7{,}791 & 13{,}144 \\
+tract-onnx-image-classification & 169{,}237 & 135{,}938 & 136{,}445 \\
+noop & 0 & 56 & 56 \\
+\end{longtable}
+
+\section{Tier-1 Baseline}
+\label{sec:appB:tier1}
+
+Tier-1 IR JIT (\texttt{WASMEDGE\_SIGHTGLASS\_MODE=IR\_JIT}, tier-2 disabled). These columns are the divisors for every \texttt{T1/T2} ratio. The same tier-1 numbers are used in every step.
+
+\begin{longtable}{l r r r}
+\caption{Tier-1 IR JIT baseline: WorkTime, compile time, and end-to-end \texttt{TtV}.}
+\label{tbl:appB:tier1}\\
+\toprule
+Kernel & WT ($\mu$s) & Comp (ms) & TtV (ms) \\
+\midrule
+\endfirsthead
+\multicolumn{4}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & WT ($\mu$s) & Comp (ms) & TtV (ms) \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+blake3-scalar & 5{,}353{,}822 & 15 & 5{,}370 \\
+blind-sig & 9{,}373{,}218 & 87 & 9{,}467 \\
+bz2 & 8{,}577{,}998 & 34 & 8{,}615 \\
+gcc-loops & 9{,}151{,}021 & 156 & 9{,}317 \\
+hashset & 5{,}804{,}478 & 762 & 6{,}586 \\
+image-classification & 2{,}199 & 71 & 147 \\
+pulldown-cmark & 3{,}043{,}596 & 60 & 3{,}108 \\
+quicksort & 8{,}054{,}768 & 6 & 8{,}061 \\
+regex & 10{,}114{,}573 & 123 & 10{,}261 \\
+richards & 903{,}620 & 2 & 906 \\
+rust-compression & 10{,}567{,}569 & 181 & 10{,}761 \\
+rust-html-rewriter & 1{,}218{,}556 & 118 & 1{,}348 \\
+rust-json & 3{,}458{,}560 & 41 & 3{,}504 \\
+rust-protobuf & 2{,}837{,}580 & 22 & 2{,}864 \\
+shootout-ackermann & 4{,}694{,}035 & 8 & 4{,}703 \\
+shootout-base64 & 8{,}433{,}085 & 8 & 8{,}442 \\
+shootout-ctype & 8{,}788{,}804 & 8 & 8{,}799 \\
+shootout-ed25519 & 8{,}451{,}759 & 147 & 8{,}588 \\
+shootout-fib2 & 7{,}886{,}532 & 6 & 7{,}893 \\
+shootout-gimli & 8{,}088{,}746 & 0 & 8{,}089 \\
+shootout-heapsort & 9{,}110{,}507 & 2 & 9{,}113 \\
+shootout-keccak & 8{,}292{,}107 & 3 & 8{,}295 \\
+shootout-matrix & 9{,}116{,}232 & 8 & 9{,}125 \\
+shootout-memmove & 2{,}728{,}614 & 8 & 2{,}737 \\
+shootout-minicsv & 2{,}095{,}122 & 1 & 2{,}096 \\
+shootout-nestedloop & 5{,}439{,}761 & 6 & 5{,}446 \\
+shootout-random & 6{,}927{,}647 & 6 & 6{,}934 \\
+shootout-ratelimit & 1{,}085{,}281 & 8 & 1{,}094 \\
+shootout-seqhash & 5{,}477{,}030 & 9 & 5{,}486 \\
+shootout-sieve & 8{,}678{,}701 & 6 & 8{,}686 \\
+shootout-switch & 8{,}492{,}810 & 36 & 8{,}531 \\
+shootout-xblabla20 & 3{,}070{,}611 & 8 & 3{,}079 \\
+shootout-xchacha20 & 8{,}398{,}324 & 9 & 8{,}408 \\
+spidermonkey-json & 81{,}095 & 3{,}133 & 3{,}387 \\
+spidermonkey-markdown & 54{,}853 & 3{,}195 & 3{,}409 \\
+spidermonkey-regex & 26{,}367 & 3{,}132 & 3{,}312 \\
+sqlite3 & 828{,}592 & 340 & 1{,}189 \\
+tinygo-json & 67{,}877 & 275 & 355 \\
+tinygo-regex & 8{,}360{,}584 & 216 & 8{,}588 \\
+tract-onnx-image-classification & 270{,}125 & 3{,}565 & 4{,}251 \\
+noop & 0 & 1 & 1 \\
+\end{longtable}
+
+\section{Step 1: Promote Hot Callees}
+\label{sec:appB:step1}
+
+Tier-2 arm from the \texttt{promote-hot-callees} branch (commit \texttt{f07da860}). Rows sorted by \texttt{LLVM/T2} descending, with \texttt{noop} at the bottom.
+
+\begin{longtable}{l r r r}
+\caption{Step 1 (Promote Hot Callees) WorkTime and ratios. Geomean over 39 kernels (\texttt{noop} and \texttt{shootout-ackermann} excluded): \texttt{T1/T2} = 0.972$\times$, \texttt{LLVM/T2} = 0.756$\times$.}
+\label{tbl:appB:step1:wt}\\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endfirsthead
+\multicolumn{4}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+shootout-nestedloop & 5{,}440{,}386 & 1.00$\times$ & 1.63$\times$ \\
+shootout-ackermann & 3{,}108{,}238 & 1.51$\times$ & 1.12$\times$ \\
+shootout-switch & 8{,}595{,}380 & 0.99$\times$ & 1.05$\times$ \\
+shootout-seqhash & 5{,}429{,}584 & 1.01$\times$ & 1.02$\times$ \\
+shootout-fib2 & 5{,}708{,}687 & 1.38$\times$ & 0.99$\times$ \\
+shootout-gimli & 8{,}158{,}523 & 0.99$\times$ & 0.99$\times$ \\
+shootout-memmove & 2{,}721{,}678 & 1.00$\times$ & 0.97$\times$ \\
+shootout-keccak & 7{,}061{,}055 & 1.17$\times$ & 0.97$\times$ \\
+quicksort & 7{,}019{,}701 & 1.15$\times$ & 0.97$\times$ \\
+blake3-scalar & 5{,}406{,}670 & 0.99$\times$ & 0.96$\times$ \\
+shootout-xchacha20 & 8{,}419{,}702 & 1.00$\times$ & 0.95$\times$ \\
+image-classification & 2{,}961 & 0.74$\times$ & 0.94$\times$ \\
+bz2 & 7{,}590{,}988 & 1.13$\times$ & 0.93$\times$ \\
+shootout-heapsort & 9{,}094{,}983 & 1.00$\times$ & 0.87$\times$ \\
+regex & 10{,}100{,}564 & 1.00$\times$ & 0.85$\times$ \\
+shootout-xblabla20 & 3{,}002{,}297 & 1.02$\times$ & 0.84$\times$ \\
+tinygo-regex & 6{,}583{,}796 & 1.27$\times$ & 0.81$\times$ \\
+shootout-sieve & 8{,}922{,}085 & 0.97$\times$ & 0.80$\times$ \\
+spidermonkey-json & 82{,}917 & 0.98$\times$ & 0.79$\times$ \\
+richards & 927{,}574 & 0.97$\times$ & 0.79$\times$ \\
+shootout-ratelimit & 1{,}102{,}093 & 0.98$\times$ & 0.79$\times$ \\
+shootout-base64 & 8{,}466{,}227 & 1.00$\times$ & 0.78$\times$ \\
+rust-compression & 9{,}292{,}646 & 1.14$\times$ & 0.75$\times$ \\
+pulldown-cmark & 2{,}912{,}271 & 1.05$\times$ & 0.75$\times$ \\
+shootout-matrix & 9{,}104{,}066 & 1.00$\times$ & 0.74$\times$ \\
+gcc-loops & 9{,}193{,}173 & 1.00$\times$ & 0.74$\times$ \\
+shootout-minicsv & 2{,}083{,}213 & 1.01$\times$ & 0.70$\times$ \\
+tinygo-json & 68{,}337 & 0.99$\times$ & 0.70$\times$ \\
+sqlite3 & 836{,}743 & 0.99$\times$ & 0.67$\times$ \\
+rust-html-rewriter & 1{,}359{,}336 & 0.90$\times$ & 0.65$\times$ \\
+rust-protobuf & 3{,}231{,}314 & 0.88$\times$ & 0.64$\times$ \\
+spidermonkey-markdown & 57{,}066 & 0.96$\times$ & 0.63$\times$ \\
+shootout-random & 6{,}943{,}921 & 1.00$\times$ & 0.63$\times$ \\
+tract-onnx-image-classification & 270{,}004 & 1.00$\times$ & 0.63$\times$ \\
+hashset & 7{,}916{,}773 & 0.73$\times$ & 0.62$\times$ \\
+rust-json & 3{,}545{,}115 & 0.98$\times$ & 0.62$\times$ \\
+spidermonkey-regex & 27{,}119 & 0.97$\times$ & 0.55$\times$ \\
+shootout-ed25519 & 12{,}846{,}623 & 0.66$\times$ & 0.38$\times$ \\
+blind-sig & 11{,}386{,}847 & 0.82$\times$ & 0.37$\times$ \\
+shootout-ctype & 16{,}316{,}727 & 0.54$\times$ & 0.31$\times$ \\
+noop & 0 & --- & --- \\
+\end{longtable}
+
+\begin{longtable}{l r r r r}
+\caption{Step 1 (Promote Hot Callees) compile time and \texttt{TtV}. Geomean over 39 kernels: \texttt{Comp T2/T1} = 1.009$\times$, \texttt{Comp LLVM/T2} = 33.724$\times$, \texttt{TtV T2/T1} = 1.001$\times$, \texttt{TtV LLVM/T2} = 1.797$\times$.}
+\label{tbl:appB:step1:ct}\\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endhead
+\midrule
+\multicolumn{5}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+blake3-scalar & 16 & 42.10$\times$ & 5{,}425 & 1.08$\times$ \\
+blind-sig & 88 & 35.05$\times$ & 11{,}483 & 0.64$\times$ \\
+bz2 & 35 & 31.06$\times$ & 7{,}629 & 1.07$\times$ \\
+gcc-loops & 167 & 22.25$\times$ & 9{,}372 & 1.13$\times$ \\
+hashset & 719 & 2.77$\times$ & 8{,}649 & 0.80$\times$ \\
+image-classification & 75 & 34.77$\times$ & 152 & 17.52$\times$ \\
+pulldown-cmark & 61 & 31.45$\times$ & 2{,}978 & 1.38$\times$ \\
+quicksort & 6 & 34.90$\times$ & 7{,}026 & 1.00$\times$ \\
+regex & 129 & 38.74$\times$ & 10{,}260 & 1.33$\times$ \\
+richards & 2 & 34.39$\times$ & 930 & 0.87$\times$ \\
+rust-compression & 186 & 29.79$\times$ & 9{,}499 & 1.32$\times$ \\
+rust-html-rewriter & 126 & 37.47$\times$ & 1{,}495 & 3.74$\times$ \\
+rust-json & 44 & 40.09$\times$ & 3{,}594 & 1.10$\times$ \\
+rust-protobuf & 23 & 42.51$\times$ & 3{,}258 & 0.94$\times$ \\
+shootout-ackermann & 9 & 34.76$\times$ & 3{,}118 & 1.21$\times$ \\
+shootout-base64 & 8 & 34.50$\times$ & 8{,}475 & 0.81$\times$ \\
+shootout-ctype & 8 & 32.37$\times$ & 16{,}330 & 0.32$\times$ \\
+shootout-ed25519 & 122 & 20.60$\times$ & 12{,}974 & 0.57$\times$ \\
+shootout-fib2 & 6 & 33.72$\times$ & 5{,}715 & 1.03$\times$ \\
+shootout-gimli & 0 & 44.01$\times$ & 8{,}159 & 0.99$\times$ \\
+shootout-heapsort & 2 & 34.54$\times$ & 9{,}098 & 0.88$\times$ \\
+shootout-keccak & 3 & 165.88$\times$ & 7{,}065 & 1.04$\times$ \\
+shootout-matrix & 8 & 33.94$\times$ & 9{,}113 & 0.77$\times$ \\
+shootout-memmove & 8 & 35.36$\times$ & 2{,}734 & 1.07$\times$ \\
+shootout-minicsv & 1 & 50.47$\times$ & 2{,}084 & 0.73$\times$ \\
+shootout-nestedloop & 7 & 31.21$\times$ & 5{,}448 & 1.67$\times$ \\
+shootout-random & 7 & 29.43$\times$ & 6{,}950 & 0.66$\times$ \\
+shootout-ratelimit & 8 & 33.32$\times$ & 1{,}111 & 1.03$\times$ \\
+shootout-seqhash & 9 & 35.44$\times$ & 5{,}439 & 1.07$\times$ \\
+shootout-sieve & 6 & 32.38$\times$ & 8{,}930 & 0.83$\times$ \\
+shootout-switch & 36 & 26.20$\times$ & 8{,}640 & 1.16$\times$ \\
+shootout-xblabla20 & 8 & 35.35$\times$ & 3{,}011 & 0.94$\times$ \\
+shootout-xchacha20 & 9 & 32.14$\times$ & 8{,}431 & 0.98$\times$ \\
+spidermonkey-json & 2{,}381 & 38.08$\times$ & 2{,}645 & 34.36$\times$ \\
+spidermonkey-markdown & 2{,}397 & 37.54$\times$ & 2{,}613 & 34.50$\times$ \\
+spidermonkey-regex & 2{,}396 & 37.68$\times$ & 2{,}578 & 35.07$\times$ \\
+sqlite3 & 363 & 45.11$\times$ & 1{,}217 & 13.93$\times$ \\
+tinygo-json & 281 & 36.61$\times$ & 361 & 28.70$\times$ \\
+tinygo-regex & 224 & 34.80$\times$ & 6{,}832 & 1.92$\times$ \\
+tract-onnx-image-classification & 3{,}663 & 37.11$\times$ & 4{,}371 & 31.22$\times$ \\
+noop & 1 & --- & 1 & --- \\
+\end{longtable}
+
+\section{Step 2: Walk-Up Plus BFS (no OSR)}
+\label{sec:appB:step2}
+
+Tier-2 arm from the \texttt{osr} branch (commit \texttt{bdd80e91}) with the OSR threshold set to zero. Rows sorted by \texttt{LLVM/T2} descending.
+
+\begin{longtable}{l r r r}
+\caption{Step 2 (Walk-Up + BFS) WorkTime and ratios. Geomean over 39 kernels: \texttt{T1/T2} = 1.033$\times$, \texttt{LLVM/T2} = 0.804$\times$.}
+\label{tbl:appB:step2:wt}\\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endfirsthead
+\multicolumn{4}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+shootout-nestedloop & 5{,}431{,}988 & 1.00$\times$ & 1.64$\times$ \\
+shootout-ackermann & 2{,}774{,}818 & 1.69$\times$ & 1.25$\times$ \\
+image-classification & 2{,}248 & 0.98$\times$ & 1.24$\times$ \\
+shootout-switch & 8{,}614{,}484 & 0.99$\times$ & 1.05$\times$ \\
+shootout-seqhash & 5{,}417{,}119 & 1.01$\times$ & 1.02$\times$ \\
+blake3-scalar & 5{,}233{,}309 & 1.02$\times$ & 0.99$\times$ \\
+shootout-gimli & 8{,}153{,}746 & 0.99$\times$ & 0.99$\times$ \\
+shootout-keccak & 6{,}971{,}609 & 1.19$\times$ & 0.98$\times$ \\
+bz2 & 7{,}187{,}289 & 1.19$\times$ & 0.98$\times$ \\
+shootout-memmove & 2{,}707{,}690 & 1.01$\times$ & 0.98$\times$ \\
+quicksort & 6{,}996{,}109 & 1.15$\times$ & 0.97$\times$ \\
+regex & 9{,}014{,}088 & 1.12$\times$ & 0.95$\times$ \\
+shootout-xchacha20 & 8{,}434{,}705 & 1.00$\times$ & 0.94$\times$ \\
+shootout-heapsort & 9{,}061{,}037 & 1.01$\times$ & 0.88$\times$ \\
+tinygo-regex & 6{,}086{,}568 & 1.37$\times$ & 0.88$\times$ \\
+rust-compression & 8{,}044{,}600 & 1.31$\times$ & 0.87$\times$ \\
+shootout-fib2 & 6{,}515{,}013 & 1.21$\times$ & 0.87$\times$ \\
+pulldown-cmark & 2{,}584{,}154 & 1.18$\times$ & 0.84$\times$ \\
+shootout-xblabla20 & 3{,}007{,}163 & 1.02$\times$ & 0.84$\times$ \\
+hashset & 5{,}894{,}940 & 0.98$\times$ & 0.84$\times$ \\
+gcc-loops & 8{,}201{,}099 & 1.12$\times$ & 0.83$\times$ \\
+richards & 908{,}661 & 0.99$\times$ & 0.81$\times$ \\
+shootout-sieve & 8{,}902{,}376 & 0.97$\times$ & 0.81$\times$ \\
+spidermonkey-json & 82{,}294 & 0.99$\times$ & 0.80$\times$ \\
+shootout-ratelimit & 1{,}092{,}851 & 0.99$\times$ & 0.79$\times$ \\
+shootout-minicsv & 1{,}848{,}205 & 1.13$\times$ & 0.79$\times$ \\
+shootout-base64 & 8{,}429{,}324 & 1.00$\times$ & 0.78$\times$ \\
+shootout-matrix & 9{,}028{,}701 & 1.01$\times$ & 0.75$\times$ \\
+rust-json & 2{,}925{,}572 & 1.18$\times$ & 0.75$\times$ \\
+rust-protobuf & 2{,}894{,}284 & 0.98$\times$ & 0.71$\times$ \\
+tinygo-json & 68{,}220 & 0.99$\times$ & 0.70$\times$ \\
+sqlite3 & 829{,}596 & 1.00$\times$ & 0.68$\times$ \\
+rust-html-rewriter & 1{,}313{,}456 & 0.93$\times$ & 0.67$\times$ \\
+spidermonkey-markdown & 55{,}658 & 0.99$\times$ & 0.65$\times$ \\
+tract-onnx-image-classification & 267{,}646 & 1.01$\times$ & 0.63$\times$ \\
+shootout-random & 6{,}940{,}275 & 1.00$\times$ & 0.63$\times$ \\
+shootout-ed25519 & 8{,}424{,}722 & 1.00$\times$ & 0.58$\times$ \\
+spidermonkey-regex & 27{,}206 & 0.97$\times$ & 0.55$\times$ \\
+blind-sig & 10{,}517{,}630 & 0.89$\times$ & 0.40$\times$ \\
+shootout-ctype & 13{,}331{,}031 & 0.66$\times$ & 0.37$\times$ \\
+noop & 0 & --- & --- \\
+\end{longtable}
+
+\begin{longtable}{l r r r r}
+\caption{Step 2 (Walk-Up + BFS) compile time and \texttt{TtV}. Geomean over 39 kernels: \texttt{Comp T2/T1} = 2.831$\times$, \texttt{Comp LLVM/T2} = 12.021$\times$, \texttt{TtV T2/T1} = 1.091$\times$, \texttt{TtV LLVM/T2} = 1.648$\times$.}
+\label{tbl:appB:step2:ct}\\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endhead
+\midrule
+\multicolumn{5}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+blake3-scalar & 94 & 7.31$\times$ & 5{,}330 & 1.10$\times$ \\
+blind-sig & 236 & 13.13$\times$ & 10{,}761 & 0.68$\times$ \\
+bz2 & 63 & 17.60$\times$ & 7{,}254 & 1.13$\times$ \\
+gcc-loops & 618 & 6.03$\times$ & 8{,}832 & 1.20$\times$ \\
+hashset & 844 & 2.36$\times$ & 6{,}735 & 1.02$\times$ \\
+image-classification & 228 & 11.38$\times$ & 301 & 8.86$\times$ \\
+pulldown-cmark & 178 & 10.76$\times$ & 2{,}765 & 1.48$\times$ \\
+quicksort & 21 & 10.46$\times$ & 7{,}017 & 1.00$\times$ \\
+regex & 375 & 13.32$\times$ & 9{,}428 & 1.44$\times$ \\
+richards & 7 & 10.17$\times$ & 916 & 0.88$\times$ \\
+rust-compression & 369 & 15.06$\times$ & 8{,}424 & 1.49$\times$ \\
+rust-html-rewriter & 392 & 12.02$\times$ & 1{,}718 & 3.26$\times$ \\
+rust-json & 164 & 10.70$\times$ & 3{,}096 & 1.27$\times$ \\
+rust-protobuf & 121 & 8.20$\times$ & 3{,}020 & 1.01$\times$ \\
+shootout-ackermann & 30 & 10.26$\times$ & 2{,}805 & 1.35$\times$ \\
+shootout-base64 & 25 & 11.27$\times$ & 8{,}455 & 0.81$\times$ \\
+shootout-ctype & 24 & 11.10$\times$ & 13{,}355 & 0.39$\times$ \\
+shootout-ed25519 & 124 & 20.22$\times$ & 8{,}550 & 0.86$\times$ \\
+shootout-fib2 & 20 & 10.33$\times$ & 6{,}539 & 0.90$\times$ \\
+shootout-gimli & 4 & 4.27$\times$ & 8{,}159 & 0.99$\times$ \\
+shootout-heapsort & 8 & 10.83$\times$ & 9{,}069 & 0.89$\times$ \\
+shootout-keccak & 7 & 76.46$\times$ & 6{,}980 & 1.06$\times$ \\
+shootout-matrix & 24 & 11.44$\times$ & 9{,}053 & 0.78$\times$ \\
+shootout-memmove & 23 & 12.58$\times$ & 2{,}731 & 1.07$\times$ \\
+shootout-minicsv & 6 & 8.85$\times$ & 1{,}855 & 0.82$\times$ \\
+shootout-nestedloop & 20 & 9.95$\times$ & 5{,}453 & 1.67$\times$ \\
+shootout-random & 21 & 9.50$\times$ & 6{,}961 & 0.66$\times$ \\
+shootout-ratelimit & 24 & 11.59$\times$ & 1{,}117 & 1.02$\times$ \\
+shootout-seqhash & 23 & 13.37$\times$ & 5{,}442 & 1.07$\times$ \\
+shootout-sieve & 20 & 9.74$\times$ & 8{,}923 & 0.83$\times$ \\
+shootout-switch & 58 & 16.33$\times$ & 8{,}692 & 1.15$\times$ \\
+shootout-xblabla20 & 26 & 10.95$\times$ & 3{,}034 & 0.93$\times$ \\
+shootout-xchacha20 & 22 & 12.57$\times$ & 8{,}458 & 0.98$\times$ \\
+spidermonkey-json & 6{,}308 & 14.37$\times$ & 6{,}577 & 13.82$\times$ \\
+spidermonkey-markdown & 6{,}326 & 14.22$\times$ & 6{,}551 & 13.76$\times$ \\
+spidermonkey-regex & 6{,}314 & 14.30$\times$ & 6{,}504 & 13.90$\times$ \\
+sqlite3 & 1{,}064 & 15.39$\times$ & 1{,}913 & 8.86$\times$ \\
+tinygo-json & 383 & 26.90$\times$ & 463 & 22.37$\times$ \\
+tinygo-regex & 295 & 26.40$\times$ & 6{,}396 & 2.05$\times$ \\
+tract-onnx-image-classification & 8{,}279 & 16.42$\times$ & 8{,}990 & 15.18$\times$ \\
+noop & 10 & --- & 10 & --- \\
+\end{longtable}
+
+\section{Step 3: Walk-Up Plus BFS Plus OSR}
+\label{sec:appB:step3}
+
+Tier-2 arm from the \texttt{osr} branch (commit \texttt{bdd80e91}) with the OSR threshold set to 5000. Rows sorted by \texttt{LLVM/T2} descending.
+
+\begin{longtable}{l r r r}
+\caption{Step 3 (Walk-Up + BFS + OSR) WorkTime and ratios. Geomean over 39 kernels: \texttt{T1/T2} = 1.105$\times$, \texttt{LLVM/T2} = 0.860$\times$.}
+\label{tbl:appB:step3:wt}\\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endfirsthead
+\multicolumn{4}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & T2 WT ($\mu$s) & T1/T2 & LLVM/T2 \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+shootout-nestedloop & 5{,}456{,}438 & 1.00$\times$ & 1.63$\times$ \\
+image-classification & 2{,}182 & 1.01$\times$ & 1.28$\times$ \\
+shootout-ackermann & 2{,}752{,}725 & 1.71$\times$ & 1.27$\times$ \\
+quicksort & 6{,}544{,}738 & 1.23$\times$ & 1.04$\times$ \\
+shootout-gimli & 7{,}929{,}693 & 1.02$\times$ & 1.02$\times$ \\
+shootout-seqhash & 5{,}435{,}950 & 1.01$\times$ & 1.02$\times$ \\
+shootout-switch & 8{,}998{,}447 & 0.94$\times$ & 1.00$\times$ \\
+shootout-xchacha20 & 7{,}969{,}919 & 1.05$\times$ & 1.00$\times$ \\
+shootout-random & 4{,}383{,}751 & 1.58$\times$ & 1.00$\times$ \\
+blake3-scalar & 5{,}256{,}128 & 1.02$\times$ & 0.99$\times$ \\
+shootout-keccak & 6{,}935{,}148 & 1.20$\times$ & 0.99$\times$ \\
+shootout-base64 & 6{,}676{,}434 & 1.26$\times$ & 0.99$\times$ \\
+shootout-memmove & 2{,}695{,}377 & 1.01$\times$ & 0.98$\times$ \\
+shootout-heapsort & 8{,}213{,}369 & 1.11$\times$ & 0.97$\times$ \\
+bz2 & 7{,}298{,}940 & 1.18$\times$ & 0.97$\times$ \\
+shootout-ratelimit & 901{,}536 & 1.20$\times$ & 0.96$\times$ \\
+shootout-minicsv & 1{,}535{,}510 & 1.36$\times$ & 0.95$\times$ \\
+shootout-xblabla20 & 2{,}664{,}736 & 1.15$\times$ & 0.95$\times$ \\
+shootout-matrix & 7{,}140{,}199 & 1.28$\times$ & 0.95$\times$ \\
+regex & 9{,}085{,}284 & 1.11$\times$ & 0.95$\times$ \\
+shootout-ctype & 5{,}664{,}109 & 1.55$\times$ & 0.88$\times$ \\
+tinygo-regex & 6{,}092{,}834 & 1.37$\times$ & 0.88$\times$ \\
+shootout-fib2 & 6{,}506{,}106 & 1.21$\times$ & 0.87$\times$ \\
+gcc-loops & 7{,}916{,}342 & 1.16$\times$ & 0.86$\times$ \\
+rust-compression & 8{,}467{,}747 & 1.25$\times$ & 0.83$\times$ \\
+shootout-sieve & 8{,}730{,}913 & 0.99$\times$ & 0.82$\times$ \\
+hashset & 6{,}176{,}044 & 0.94$\times$ & 0.80$\times$ \\
+blind-sig & 5{,}201{,}661 & 1.80$\times$ & 0.80$\times$ \\
+richards & 934{,}762 & 0.97$\times$ & 0.78$\times$ \\
+pulldown-cmark & 2{,}801{,}286 & 1.09$\times$ & 0.78$\times$ \\
+spidermonkey-json & 93{,}950 & 0.86$\times$ & 0.70$\times$ \\
+rust-protobuf & 2{,}951{,}811 & 0.96$\times$ & 0.70$\times$ \\
+tinygo-json & 69{,}082 & 0.98$\times$ & 0.69$\times$ \\
+shootout-ed25519 & 7{,}318{,}327 & 1.15$\times$ & 0.66$\times$ \\
+sqlite3 & 867{,}947 & 0.95$\times$ & 0.65$\times$ \\
+rust-json & 3{,}444{,}532 & 1.00$\times$ & 0.63$\times$ \\
+tract-onnx-image-classification & 271{,}405 & 1.00$\times$ & 0.62$\times$ \\
+rust-html-rewriter & 1{,}417{,}953 & 0.86$\times$ & 0.62$\times$ \\
+spidermonkey-markdown & 58{,}657 & 0.94$\times$ & 0.62$\times$ \\
+spidermonkey-regex & 27{,}769 & 0.95$\times$ & 0.54$\times$ \\
+noop & 0 & --- & --- \\
+\end{longtable}
+
+\begin{longtable}{l r r r r}
+\caption{Step 3 (Walk-Up + BFS + OSR) compile time and \texttt{TtV}. Geomean over 39 kernels: \texttt{Comp T2/T1} = 3.053$\times$, \texttt{Comp LLVM/T2} = 11.145$\times$, \texttt{TtV T2/T1} = 1.041$\times$, \texttt{TtV LLVM/T2} = 1.728$\times$.}
+\label{tbl:appB:step3:ct}\\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\small (continued from previous page)} \\
+\toprule
+Kernel & Comp T2 (ms) & LLVM/T2 Comp & TtV T2 (ms) & LLVM/T2 TtV \\
+\midrule
+\endhead
+\midrule
+\multicolumn{5}{r}{\small (continued on next page)} \\
+\endfoot
+\bottomrule
+\endlastfoot
+blake3-scalar & 95 & 7.21$\times$ & 5{,}353 & 1.10$\times$ \\
+blind-sig & 259 & 11.94$\times$ & 5{,}462 & 1.35$\times$ \\
+bz2 & 82 & 13.39$\times$ & 7{,}384 & 1.11$\times$ \\
+gcc-loops & 645 & 5.77$\times$ & 8{,}587 & 1.23$\times$ \\
+hashset & 419 & 4.75$\times$ & 6{,}623 & 1.04$\times$ \\
+image-classification & 235 & 11.08$\times$ & 303 & 8.80$\times$ \\
+pulldown-cmark & 184 & 10.39$\times$ & 2{,}992 & 1.37$\times$ \\
+quicksort & 23 & 9.55$\times$ & 6{,}568 & 1.07$\times$ \\
+regex & 401 & 12.46$\times$ & 9{,}507 & 1.43$\times$ \\
+richards & 8 & 8.94$\times$ & 943 & 0.86$\times$ \\
+rust-compression & 415 & 13.38$\times$ & 8{,}896 & 1.41$\times$ \\
+rust-html-rewriter & 427 & 11.04$\times$ & 1{,}857 & 3.01$\times$ \\
+rust-json & 175 & 10.04$\times$ & 3{,}626 & 1.09$\times$ \\
+rust-protobuf & 126 & 7.86$\times$ & 3{,}083 & 0.99$\times$ \\
+shootout-ackermann & 33 & 9.28$\times$ & 2{,}786 & 1.36$\times$ \\
+shootout-base64 & 29 & 9.84$\times$ & 6{,}704 & 1.03$\times$ \\
+shootout-ctype & 27 & 9.69$\times$ & 5{,}692 & 0.93$\times$ \\
+shootout-ed25519 & 136 & 18.51$\times$ & 7{,}456 & 0.99$\times$ \\
+shootout-fib2 & 22 & 9.25$\times$ & 6{,}529 & 0.90$\times$ \\
+shootout-gimli & 4 & 4.39$\times$ & 7{,}934 & 1.02$\times$ \\
+shootout-heapsort & 8 & 9.69$\times$ & 8{,}222 & 0.98$\times$ \\
+shootout-keccak & 7 & 76.02$\times$ & 6{,}942 & 1.06$\times$ \\
+shootout-matrix & 27 & 10.02$\times$ & 7{,}168 & 0.98$\times$ \\
+shootout-memmove & 26 & 11.15$\times$ & 2{,}722 & 1.08$\times$ \\
+shootout-minicsv & 6 & 8.89$\times$ & 1{,}542 & 0.99$\times$ \\
+shootout-nestedloop & 23 & 8.78$\times$ & 5{,}482 & 1.66$\times$ \\
+shootout-random & 22 & 9.30$\times$ & 4{,}406 & 1.04$\times$ \\
+shootout-ratelimit & 28 & 9.95$\times$ & 930 & 1.23$\times$ \\
+shootout-seqhash & 28 & 11.22$\times$ & 5{,}464 & 1.07$\times$ \\
+shootout-sieve & 21 & 9.27$\times$ & 8{,}753 & 0.84$\times$ \\
+shootout-switch & 55 & 17.33$\times$ & 9{,}076 & 1.10$\times$ \\
+shootout-xblabla20 & 27 & 10.59$\times$ & 2{,}691 & 1.05$\times$ \\
+shootout-xchacha20 & 26 & 10.60$\times$ & 7{,}997 & 1.03$\times$ \\
+spidermonkey-json & 8{,}693 & 10.43$\times$ & 8{,}976 & 10.13$\times$ \\
+spidermonkey-markdown & 8{,}695 & 10.35$\times$ & 8{,}920 & 10.11$\times$ \\
+spidermonkey-regex & 8{,}721 & 10.35$\times$ & 8{,}910 & 10.15$\times$ \\
+sqlite3 & 1{,}099 & 14.90$\times$ & 1{,}985 & 8.54$\times$ \\
+tinygo-json & 392 & 26.29$\times$ & 473 & 21.93$\times$ \\
+tinygo-regex & 293 & 26.58$\times$ & 6{,}402 & 2.05$\times$ \\
+tract-onnx-image-classification & 8{,}932 & 15.22$\times$ & 9{,}657 & 14.13$\times$ \\
+noop & 12 & --- & 12 & --- \\
+\end{longtable}

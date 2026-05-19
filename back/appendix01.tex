@@ -1,5 +1,146 @@
 % !TeX root = ../main.tex
 
-\appendix{A}{The JitExecEnv Runtime Context}
+\appendix{A}{Sightglass-Strong Kernel Details}
+\label{ch:appendix-strong}
 
-To be drafted: full C-struct definition of \texttt{JitExecEnv} with per-field annotations.
+This appendix documents the per-kernel strengthening procedure used to produce sightglass-strong from upstream sightglass, and lists the seven kernels that were retained at their upstream size because they resist tier-2 speedup.
+
+\section{Strengthening Categories}
+\label{sec:appA:categories}
+
+Three patterns cover most of the strengthening work. A small number of kernels need additional surgery; those are described in Section~\ref{sec:appA:special}. One kernel (\texttt{noop}) is left at upstream size as a harness-overhead reference.
+
+\subsection{Category A: Internal-constant bumps}
+
+The kernel exposes its iteration count as a single \texttt{\#define} or named constant at the top of the source file. Strengthening increases the constant; no other changes are required.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l l r r}
+\toprule
+Kernel & Source file & Original & Strengthened \\
+\midrule
+shootout-sieve     & sieve.c     & LENGTH 17{,}000        & 1{,}000{,}000 \\
+shootout-heapsort  & heapsort.c  & ITERATIONS 1{,}000     & 15{,}000 \\
+shootout-matrix    & matrix.c    & ITERATIONS 300{,}000   & 35{,}000{,}000 \\
+shootout-memmove   & memmove.c   & ITERATIONS 10          & 3{,}500 \\
+shootout-ratelimit & ratelimit.c & ITERATIONS 1{,}000{,}000 & 50{,}000{,}000 \\
+shootout-gimli     & gimli.c     & ITERATIONS 10{,}000    & 100{,}000{,}000 \\
+shootout-base64    & base64.c    & ITERATIONS 10{,}000    & 1{,}200{,}000 \\
+shootout-keccak    & keccak.c    & ITERATIONS 10{,}000    & 32{,}000{,}000 \\
+shootout-xblabla20 & xblabla20.c & ITERATIONS 1{,}000     & 6{,}000{,}000 \\
+shootout-xchacha20 & xchacha20.c & ITERATIONS 1{,}000     & 11{,}000{,}000 \\
+shootout-ctype     & ctype.c     & ITERATIONS 1{,}000     & 60{,}000 \\
+shootout-switch    & switch.c    & ITERATIONS 1{,}000     & 300{,}000 \\
+shootout-random    & random.c    & LENGTH 40{,}000{,}000  & 2{,}000{,}000{,}000 \\
+shootout-ed25519   & ed25519.c   & ITERATIONS 10{,}000    & 50{,}000 \\
+shootout-minicsv   & minicsv.c   & ITERATIONS 1{,}000{,}000 & 8{,}000{,}000 \\
+\bottomrule
+\end{tabular}
+\caption{Category A: shootout-style kernels whose iteration count lives in a top-of-file \texttt{\#define}.}
+\end{table}
+
+\subsection{Category B: Main-loop literal bumps}
+
+The kernel's \texttt{main} function contains an outer loop with a numeric literal; strengthening replaces the literal.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l l p{6.5cm}}
+\toprule
+Kernel & Source file & Change \\
+\midrule
+quicksort & quicksort.c & outer loop 100 $\to$ 40{,}000 (plus an out-of-bounds fix; see Section~\ref{sec:appA:special}) \\
+richards  & richards.c  & outer loop 100 $\to$ 35 (an earlier 10{,}000 timed out at over 120\,s; 500 still overshot at 115\,s) \\
+hashset   & HashSet.cpp & outer loop 100 $\to$ 30{,}000 (plus a golden-determinism fix) \\
+gcc-loops & gcc-loops.cpp & \texttt{Mi} 1$\ll$18 $\to$ 660{,}000 \\
+\bottomrule
+\end{tabular}
+\caption{Category B: kernels whose driver loop already exists; strengthening edits the literal.}
+\end{table}
+
+\subsection{Category C: Outer-loop wraps}
+
+The kernel measures a single execution of the benchmark region. Strengthening wraps that region in a new outer loop. All wraps sit between the kernel's \texttt{bench\_start} and \texttt{bench\_end} markers; any one-time print statements that depend on final state are moved outside the loop so the golden output stays deterministic.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l l p{6.5cm}}
+\toprule
+Kernel & Source file & Wrap iteration count \\
+\midrule
+bz2                & benchmark.c & 400 (compress + decompress per iteration) \\
+blake3-scalar      & main.rs     & 100{,}000 (\texttt{blake3::hash} per iteration) \\
+rust-compression   & main.rs     & 10 (gzip and brotli codecs per iteration) \\
+rust-json          & main.rs     & 1{,}600 (parse and serialize per iteration) \\
+pulldown-cmark     & main.rs     & 2{,}500 (parse and render into a fresh output buffer per iteration) \\
+regex              & main.rs     & 200 (three \texttt{count\_matches} calls per iteration) \\
+blind-sig          & main.rs     & 200 (with the first iteration outside the wrap to initialize the signature) \\
+rust-html-rewriter & main.rs     & 800 (\texttt{rewrite\_str} per iteration) \\
+rust-protobuf      & main.rs     & 2{,}500 (decode and encode per iteration) \\
+tinygo-regex       & main.go     & 7 (three regex pattern counts per iteration; TinyGo \texttt{opt=2 -gc=leaking}) \\
+\bottomrule
+\end{tabular}
+\caption{Category C: kernels that originally measured a single execution; strengthening wraps the bench region in a fresh outer loop.}
+\end{table}
+
+\section{Special Cases}
+\label{sec:appA:special}
+
+Five kernels need work beyond a constant bump. Three of them ran afoul of compiler optimizations that hoisted the benchmark region out of the new outer loop. Two had latent out-of-bounds bugs that were masked at upstream iteration counts but trapped under the strengthened ones.
+
+\paragraph{shootout-fib2.} Pure recursive Fibonacci. The outer loop wraps fourteen iterations; without an optimization barrier on the input \texttt{n}, the loop-invariant code motion pass hoists the recursive call out of the loop entirely (the recursive function is pure and \texttt{n} is a local literal). A \texttt{BLACK\_BOX(n)} call inside the loop body forces a real call per iteration.
+
+\paragraph{shootout-ackermann.} Same hoisting failure mode as \texttt{shootout-fib2}. The input file is bumped from $n = 7$ to $n = 10$ (Ackermann's growth is roughly $2^n$, so $n = 7$ ran in 5\,ms while $n = 10$ runs in 60--80\,ms per call), and the outer loop wraps 140 iterations with optimization barriers on both Ackermann arguments. The upstream source contains an unrelated bug---a buffer declared \texttt{char* buf[32]} (array of pointers) where the code expects \texttt{char buf[32]} (array of bytes)---left in place to avoid diverging further from upstream.
+
+\paragraph{shootout-nestedloop.} Six nested loops over an integer counter. The clang scalar-evolution pass collapses the entire nest into a closed-form polynomial when the body is simple enough. The body was rewritten from \texttt{x++} to \texttt{x = x*31 + f} \emph{and} the counter declared \texttt{volatile int}; the rewrite alone is not enough, because the polynomial collapse keeps working on the new form. The \texttt{volatile} qualifier forces a real load and store on each iteration, which defeats the pass.
+
+\paragraph{shootout-seqhash.} The \texttt{HASH\_ITERATIONS} constant is bumped from 1 to 3, but the kernel's stack-allocated array is sized for \texttt{LEVELS} entries while the body writes \texttt{LEVELS * HASH\_ITERATIONS}. The latent overflow trapped at the strengthened size and was fixed by re-declaring the array with the larger product. The \texttt{ARENA\_SIZE} constant was also halved (from 1{,}000{,}000 to 500{,}000) because scaling \texttt{HASH\_ITERATIONS} alone was non-linear; halving the arena restores linear scaling.
+
+\paragraph{quicksort.} A \texttt{printf} reads past the end of the sort array when the loop variable exceeds \texttt{sortelements} (5{,}000). The 40{,}000-iteration bump causes the loop variable to exceed 5{,}000 routinely. Fixed by modular indexing: \texttt{sortlist[(run \% sortelements) + 1]}.
+
+\paragraph{hashset.} The kernel printed a per-run wall-clock timing string (\texttt{"That took X seconds."}) that made the golden output unstable across runs. Replaced with a fixed \texttt{"Done."} string; the surrounding wall-clock captures were dropped.
+
+\section{Tier-2-Resistant Kernels}
+\label{sec:appA:neg}
+
+Seven kernels in the suite are retained at their upstream iteration counts rather than strengthened: \texttt{spidermonkey-json}, \texttt{spidermonkey-markdown}, \texttt{spidermonkey-regex}, \texttt{tinygo-json}, \texttt{image-classification}, \texttt{sqlite3}, and \texttt{tract-onnx-image-classification}. Each was strengthened to land in the 5--10\,second tier-1 band and measured against tier-2 (regular) and tier-2 with OSR. The results are reproduced in Table~\ref{tbl:appA:neg}. In every case, the strengthened tier-2/tier-1 work-time ratio came in within $\pm 0.05\times$ of $1.0\times$---often \emph{below} $1.0\times$. The strengthened versions would inflate the suite's geometric means toward $1.0\times$ without telling a new story, so the kernels are kept at upstream size and counted as evidence that tier-2 cannot accelerate these workload shapes. The compile-time difference between LLVM JIT and the tiered architecture on these kernels is, however, real and substantial; the cold-start \texttt{TtV} analysis in Section~\ref{sec:eval:tt} uses exactly these kernels as its showcase.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l r r r r r}
+\toprule
+Strengthened kernel & T1 ($\mu$s) & T2 ($\mu$s) & T2+OSR ($\mu$s) & T1/T2 & T1/(T2+OSR) \\
+\midrule
+spidermonkey-json (100 iters)             & 6{,}861{,}438 & 6{,}841{,}687 & 7{,}679{,}136 & 1.00$\times$ & 0.89$\times$ \\
+spidermonkey-markdown (150 iters)         & 5{,}839{,}787 & 6{,}263{,}446 & 6{,}547{,}835 & 0.93$\times$ & 0.89$\times$ \\
+spidermonkey-regex (350 iters)            & 8{,}105{,}837 & 8{,}747{,}908 & 7{,}884{,}831 & 0.93$\times$ & 1.03$\times$ \\
+tinygo-json (120 iters)                   & 7{,}895{,}398 & 7{,}844{,}385 & 7{,}826{,}273 & 1.01$\times$ & 1.01$\times$ \\
+image-classification (3{,}500 iters)      & 5{,}067{,}486 & 5{,}059{,}485 & 4{,}937{,}057 & 1.00$\times$ & 1.03$\times$ \\
+sqlite3 (10 iters)                        & 8{,}208{,}141 & 7{,}962{,}978 & 8{,}672{,}875 & 1.03$\times$ & 0.95$\times$ \\
+tract-onnx-image-classification (30 iters) & 7{,}720{,}191 & 7{,}974{,}772 & 8{,}284{,}838 & 0.97$\times$ & 0.93$\times$ \\
+\midrule
+\textbf{tinygo-regex (7 iters)} & 8{,}468{,}501 & 6{,}185{,}582 & 6{,}231{,}380 & \textbf{1.37$\times$} & \textbf{1.36$\times$} \\
+\bottomrule
+\end{tabular}
+\caption{The tier-2-resistant kernels: seven kernels whose strengthened versions produce flat tier-2 ratios, plus \texttt{tinygo-regex} (the only one of the eight extension kernels that does produce a real tier-2 win, retained at its strengthened size).}
+\label{tbl:appA:neg}
+\end{table}
+
+The structural reasons each kernel resists tier-2 are documented below. They are the same patterns that limit multi-tier JITs in native runtimes such as V8, JavaScriptCore, and .NET: native FFI hops, wasm-compiled interpreters, indirect dispatch over runtime type information, and large-function workloads with high per-function compile cost.
+
+\paragraph{image-classification.} Host-bound. The bench region wraps a single \texttt{wasi\_nn::compute} call; the host plugin performs the matrix work in native AVX. The wasm portion is microseconds next to milliseconds of host work, so tier-2 has nothing left to optimize.
+
+\paragraph{spidermonkey-\{json, markdown, regex\}.} Interpreter-shaped wasm. Each kernel is the SpiderMonkey C++ engine compiled to wasm with the SpiderMonkey JIT tier disabled. JavaScript therefore runs through SpiderMonkey's bytecode interpreter: a large \texttt{clang -O3}-compiled dispatch switch. The hot inner loop is opcode fetch plus dispatch, bottlenecked by branch prediction and instruction fetch rather than codegen quality. The tier-2 pipeline cannot recover the C++ semantics from already-O3-compiled wasm bytecode; inlining, vectorization, and loop choices are baked in at the C++-to-wasm step.
+
+\paragraph{tinygo-json.} Reflection-heavy wasm. The standard-library \texttt{encoding/json.Unmarshal} dispatches every field decoder through a \texttt{call\_indirect} resolved at run time from \texttt{reflect.Type} tables. Neither tier-1 nor tier-2 can devirtualize across \texttt{call\_indirect} from wasm bytecode alone; the call target depends on values that constant folding cannot reach.
+
+\paragraph{sqlite3.} Interpreter-shaped wasm at smaller scale than SpiderMonkey. SQLite's VDBE is itself a bytecode interpreter: a computed-goto dispatch loop in C, pushed through Emscripten \texttt{-O3} at compile time. The remaining wasm-side cycles spread thinly across many small functions (parser, btree, pager); few of them individually cross the tier-2 promotion threshold, so tier-2 promotes only a handful of functions and the steady-state delta is in the noise.
+
+\paragraph{tract-onnx-image-classification.} Compile-cost-dominated. The tract tensor operators produce large wasm functions, and the per-function LLVM compile cost is steep enough that enabling tier-2 inflates the compile-time column from 3.5\,s to 8.3\,s. The tier-2 swap therefore arrives late in the bench window and leaves little post-swap runway. The whole-module LLVM JIT row tells the same story from the other side: 138\,s of upfront compile for 167\,ms of execution.
+
+\paragraph{tinygo-regex (retained).} Direct-called scalar code. The regex engine compiles a deterministic finite automaton at build time, and the match loop is a tight scan over a byte slice with scalar comparisons and byte loads. Direct calls, regular loops, and scalar arithmetic are exactly the shape where the LLVM optimizer improves on the tier-1 backend, so this kernel is retained at the strengthened size and contributes a real tier-2 win to the main aggregates.

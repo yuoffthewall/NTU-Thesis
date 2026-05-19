@@ -25,7 +25,7 @@ Two promotion paths target the two invocation shapes that matter. The first, fun
   elabel/.style={font=\footnotesize, fill=white, inner sep=1pt},
 ]
 \node[wide] (input) at (0, 9.0) {Wasm module};
-\node[wide] (t1c)   at (0, 7.6) {Tier-1 compiler (lightweight SSA, per-function)};
+\node[wide] (t1c)   at (0, 7.6) {Tier-1 compiler (Sea-of-Nodes, per-function)};
 \node[box, user] (entry) at (-2.85, 5.7) {Tier-1 native\\(function entry)};
 \node[box, user] (loop)  at ( 2.85, 5.7) {Tier-1 native\\(OSR-instrumented loop)};
 \node[box, worker] (q1) at (-2.85, 3.6) {Tier-2 batch queue};
@@ -60,7 +60,7 @@ This section defines the shared interfaces that tier-1 and tier-2 code expose to
 \subsection{The \texttt{JitExecEnv} runtime context}
 \label{sec:design:context:env}
 
-Every tier-1-compiled function receives a single pointer-typed argument---a \texttt{JitExecEnv} instance---through which it reads all module-level state. The single-struct design serves two purposes: it removes any need for the tier-1 hot path to traverse the executor's data structures, and it provides a stable lowering target for the tier-2 ABI bridge thunks (Section~\ref{sec:design:context:thunks}). Table~\ref{tbl:jitexecenv} summarizes the three field groups; the full struct definition is reproduced in Appendix~A.
+Every tier-1-compiled function receives a single pointer-typed argument---a \texttt{JitExecEnv} instance---through which it reads all module-level state. The single-struct design serves two purposes: it removes any need for the tier-1 hot path to traverse the executor's data structures, and it provides a stable lowering target for the tier-2 ABI bridge thunks (Section~\ref{sec:design:context:thunks}). Table~\ref{tbl:jitexecenv} summarizes the three field groups.
 
 \begin{table}[h]
 \centering
@@ -135,17 +135,17 @@ The \texttt{entry\_thunk} is a fresh LLVM-convention wrapper around each tier-1 
 \section{Tier-1 Baseline JIT}
 \label{sec:design:tier1}
 
-The tier-1 baseline JIT compiles every defined wasm function at module instantiation, producing native code at low compile cost. The output of each compilation is placed in the \texttt{FuncTable} for use by direct and indirect dispatch. Three design choices distinguish the proposed mechanism: the choice of a lightweight SSA-based code generator, a single-pass wasm-to-IR translation strategy with selective PHI emission, and the embedding of profile counters directly into the compiled bodies.
+The tier-1 baseline JIT compiles every defined wasm function at module instantiation, producing native code at low compile cost. The output of each compilation is placed in the \texttt{FuncTable} for use by direct and indirect dispatch. Three design choices distinguish the proposed mechanism: the choice of a lightweight Sea-of-Nodes code generator, a single-pass wasm-to-IR translation strategy with selective PHI emission, and the embedding of profile counters directly into the compiled bodies. The lowering covers the full MVP WebAssembly instruction set plus the reference-type, bulk-memory, and table extensions; SIMD (\texttt{v128}) instructions are not lowered in the current implementation, and modules that use them are rejected at translation time.
 
-\subsection{Lightweight SSA backend as the code generator}
+\subsection{Lightweight Sea-of-Nodes backend as the code generator}
 \label{sec:design:tier1:backend}
 
-The proposed architecture adopts \emph{dstogov/ir}, the lightweight SSA-based JIT library introduced in Section~\ref{sec:bg:ir-lib}, as the tier-1 code generator. The library implements a small fixed sequence of optimization passes---constant propagation, global code motion, scheduling, and linear-scan register allocation---behind a simple emitter API that accepts SSA nodes one at a time. The selection over alternatives such as Cranelift or hand-rolled emitters reflects three considerations: SSA-quality output from a single-pass front end, bounded and predictable compile latency, and a small enough codebase to vendor and modify when the runtime needs a behavioral change in the backend. The library compiles at the function granularity using its standard optimization level. A lower-optimization mode is retained as a debugging aid.
+The proposed architecture adopts \emph{dstogov/ir}~\cite{dstogov-ir}, the lightweight Sea-of-Nodes JIT library introduced in Section~\ref{sec:bg:ir-lib}, as the tier-1 code generator. The library implements a small fixed sequence of optimization passes---on-the-fly folding (with CSE), sparse conditional constant propagation, global code motion, local scheduling, and linear-scan register allocation---behind a simple emitter API that accepts SSA nodes one at a time. The selection over alternatives such as Cranelift~\cite{cranelift} or hand-rolled emitters reflects three considerations: SSA-quality output from a single-pass frontend, bounded and predictable compile latency, and a small enough codebase to vendor and modify when the runtime needs a behavioral change in the backend. The library compiles at the function granularity using its standard optimization level. A lower-optimization mode is retained as a debugging aid.
 
 \subsection{Single-pass wasm-to-IR translation}
 \label{sec:design:tier1:translation}
 
-The translation from wasm bytecode to IR runs as a single forward walk over the function body. The walker simulates the wasm operand stack as a stack of SSA value references, maintains a map from each wasm local index to its current SSA definition, and tracks open structured-control constructs on a label stack. Most wasm operations lower one-to-one to a single IR node. A few operations face a type-system mismatch between wasm semantics and the backend's typing rules---notably unsigned division and floating-point copysign---and bridge through extern-C helper calls.
+The translation from wasm bytecode to IR runs as a single forward walk over the function body. The walker simulates the wasm operand stack as a stack of SSA value references, maintains a map from each wasm local index to its current SSA definition, and tracks open structured-control constructs on a label stack. Wasm locals are lowered directly to SSA values rather than to memory cells, which is feasible because the IR is SSA by construction and the local set is known statically at function entry. Most wasm operations lower one-to-one to a single IR node. A few operations face a type-system mismatch between wasm semantics and the backend's typing rules---notably unsigned division and floating-point copysign---and bridge through extern-C helper calls.
 
 One design choice is worth noting. At each loop, the walker performs a pre-pass over the loop body to identify exactly which locals are written within the loop, and emits PHI nodes only for those locals. A naive translation that emitted PHIs for every local would inflate IR size by an order of magnitude on functions with many locals and few-modification loops. Selective PHI emission preserves the SSA values of unmodified locals across iterations, avoiding the inflation.
 
@@ -225,7 +225,7 @@ A tier-up event identifies a single hot function. Compiling that function in iso
 
 First, the function that crosses the threshold is typically a small leaf called from a larger hot function. Compiling the leaf alone misses the surrounding context that contains most of the run-time. The algorithm therefore walks up the static call graph from the leaf, bounded to one hop, and selects the hottest direct caller as the batch root. From the root, it performs a bounded breadth-first traversal of direct callees.
 
-Second, callee inclusion is gated by two tests applied in parallel. The dynamic test admits any callee whose dynamic call counter is non-zero; its purpose is to filter out dead code---functions that the static call graph identifies as reachable from the caller but that the workload never actually invokes. The static test admits any callee the caller's body references at least twice; its purpose is to filter out one-off references---callees invoked from a single site, which are typically rare-path or cleanup helpers rather than functions on the caller's main computation path. A callee enters the batch if either test passes.
+Second, callee inclusion is gated by two tests. The dynamic test admits any callee whose dynamic call counter is non-zero; its purpose is to filter out dead code---functions that the static call graph identifies as reachable from the caller but that the workload never actually invokes. The static test admits any callee the caller's body references at least twice; its purpose is to filter out one-off references---callees invoked from a single site, which are typically rare-path or cleanup helpers rather than functions on the caller's main computation path. A callee enters the batch if either test passes.
 
 \begin{algorithm}
 \caption{Batch composition for a tier-up event at \emph{HotFuncIdx}.}
@@ -255,7 +255,7 @@ Second, callee inclusion is gated by two tests applied in parallel. The dynamic 
 
 After the optimization pass completes and the JIT compiler produces native pointers, the post-processor walks the LLVM module a final time to delete any stub function with no remaining users. It then atomically publishes the \texttt{fwd\_thunk} pointer for each batch member into the \texttt{FuncTable} with release semantics.
 
-The publication is a single atomic store. On the supported host architecture, the tier-1 polling load on the same slot has acquire ordering at the ISA level, so no explicit fence is required on the user thread. From the user thread's perspective, every direct dispatch through the slot either observes the tier-1 native pointer or the \texttt{fwd\_thunk}, never an intermediate state.
+The publication is a single atomic store. On the supported host architecture, the tier-1 dispatch load on the same slot has acquire ordering at the ISA level, so no explicit fence is required on the user thread. From the user thread's perspective, every direct dispatch through the slot either observes the tier-1 native pointer or the \texttt{fwd\_thunk}, never an intermediate state.
 
 \section{On-Stack Replacement}
 \label{sec:design:osr}
@@ -272,7 +272,7 @@ The shape of the workloads that motivate OSR is illustrated by a class of crypto
 \subsection{Three-state back-edge instrumentation}
 \label{sec:design:osr:diamond}
 
-Every outermost loop in tier-1 code emits a back-edge instrumentation diamond that polls the loop's slot in the \texttt{OsrEntryTable} on every iteration. The slot encodes a three-state machine (Listing~\ref{lst:design:diamond}). In the \emph{counting} state, the back-edge runs the per-loop counter; on saturation, the counter fires the OSR notification, which simultaneously saturates the counter and writes a sentinel value that transitions the slot to the \emph{waiting} state. In the \emph{waiting} state, the back-edge falls through with no further work; this is the steady state on the post-saturation hot path, and reduces to three operations per iteration (load, test, branch). When the worker thread publishes the OSR continuation entry, the slot transitions to the \emph{ready} state and holds the entry's native pointer; the next iteration of the loop snapshots the wasm locals into a per-thread buffer, tail-calls the entry, and returns its result.
+Every outermost loop in tier-1 code emits a back-edge instrumentation diamond that polls the loop's slot in the \texttt{OsrEntryTable} on every iteration. The slot encodes a three-state machine (Listing~\ref{lst:design:diamond}). In the \emph{counting} state, the back-edge runs the per-loop counter. On saturation, the counter fires the OSR notification. The notification saturates the counter and writes a sentinel value that transitions the slot to the \emph{waiting} state. In the \emph{waiting} state, the back-edge falls through with no further work. This is the steady state on the post-saturation hot path, and reduces to three operations per iteration (load, test, branch). When the worker thread publishes the OSR continuation entry, the slot transitions to the \emph{ready} state and holds the entry's native pointer. The next iteration of the loop snapshots the wasm locals into a per-thread buffer, tail-calls the entry, and returns its result.
 
 \begin{lstlisting}[caption={Back-edge instrumentation diamond (pseudocode).}, label={lst:design:diamond}]
 slot = LOAD OsrEntryTable[loopId]

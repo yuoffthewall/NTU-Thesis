@@ -61,6 +61,32 @@
 └── ...
 ```
 
+# Build
+
+NTU-Thesis is built with XeLaTeX + BibTeX. The standard command sequence is:
+
+```sh
+cd ~/Desktop/NTU-Thesis
+xelatex main.tex
+bibtex main
+xelatex main.tex
+xelatex main.tex
+```
+
+The three xelatex passes are needed so the table of contents, list of figures, list of tables, and all cross-references (\ref, \cite) converge. bibtex only needs to run when the bibliography changes.
+
+For a quick rebuild after edits that don't touch citations, two xelatex passes are usually enough:
+
+```sh
+xelatex -interaction=nonstopmode -halt-on-error main.tex
+xelatex -interaction=nonstopmode -halt-on-error main.tex
+```
+
+The flags suppress interactive prompts on errors and abort on the first failure, which is convenient for scripted rebuilds.
+
+A successful build produces main.pdf in the same directory. The template's magic comments (`% !TEX TS-program = xelatex`, `% !BIB program = bibtex`) at the top of main.tex also let editors like TeXShop or VS Code's LaTeX Workshop pick the right toolchain automatically.
+
+
 ## License
 
 Licensed under the MIT License, Copyright © 2017-present Hsins.
