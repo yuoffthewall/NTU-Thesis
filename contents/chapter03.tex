@@ -179,7 +179,7 @@ Two dedup sets prevent redundant work. One set tracks function indices for which
 
 The central design choice of tier-2 is to reuse the existing LLVM frontend without modification. Reimplementing wasm-to-LLVM lowering for tier-2 would duplicate a mature compiler. Instead, the architecture synthesizes a fresh wasm module that contains only the hot batch functions in their original form. Non-batch function bodies are replaced by stubs that allow the frontend's call lowering to resolve correctly. Algorithm~\ref{alg:design:synthesis} summarizes the synthesis.
 
-The original module's section structure is preserved verbatim, except that non-batch defined functions receive trivial bodies. Each stub emits type-matched default constants for the function's declared return types. An earlier design used a trap-style stub instead. The trap stub caused the LLVM frontend to mark each function as non-returning, and call sites in batch bodies that referenced a stub had their control flow folded into a trap at the call site. Default returns avoid this folding while validating trivially.
+The original module's section structure is preserved verbatim, except that non-batch defined functions receive trivial bodies. Each stub emits type-matched default constants for the function's declared return types.
 
 \begin{algorithm}
 \caption{Mini-module synthesis for a tier-2 batch.}
