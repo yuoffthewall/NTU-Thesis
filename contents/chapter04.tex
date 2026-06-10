@@ -118,27 +118,36 @@ The improved batch composition walks up the static call graph from the threshold
 
 Across the 39 kernels, the geometric mean of \texttt{t1/t2} rises to \textbf{1.03$\times$} and the geometric mean of \texttt{LLVM/t2} rises to \textbf{0.80$\times$}. Tier-2 now beats tier-1 by approximately 3\% on average and recovers approximately 80\% of LLVM JIT throughput.
 
-The largest beneficiaries are kernels whose Step 1 batch was structurally too small for the optimizer to inline within (Table~\ref{tbl:eval:walkup}). \texttt{hashset} rises from 0.62$\times$ to 0.84$\times$, recovering from a Step 1 \texttt{t1/t2} regression to a clear tier-2 win. \texttt{shootout-ed25519} rises from 0.38$\times$ to 0.58$\times$ as the walk-up captures the cryptographic caller that wraps the modular-arithmetic leaf. The Rust kernels (\texttt{rust-json}, \texttt{rust-compression}, \texttt{rust-protobuf}) recover similarly: their static call graphs are deeper than the shootout kernels, so a single-hop BFS at Step 1 misses most of the hot work.
+The largest beneficiaries are kernels whose Step 1 batch was structurally too small for the optimizer to inline within (Figure~\ref{fig:eval:walkup}). \texttt{hashset} rises from 0.62$\times$ to 0.84$\times$, recovering from a Step 1 \texttt{t1/t2} regression to a clear tier-2 win. \texttt{shootout-ed25519} rises from 0.38$\times$ to 0.58$\times$ as the walk-up captures the cryptographic caller that wraps the modular-arithmetic leaf. The Rust kernels (\texttt{rust-json}, \texttt{rust-compression}, \texttt{rust-protobuf}) recover similarly: their static call graphs are deeper than the shootout kernels, so a single-hop BFS at Step 1 misses most of the hot work.
 
-\begin{table}[h]
+\begin{figure}[h]
 \centering
-\small
-\begin{tabular}{l r r r}
-\toprule
-Kernel & Step 1 \texttt{LLVM/t2} & Step 2 \texttt{LLVM/t2} & Swing \\
-\midrule
-\texttt{hashset}           & 0.62$\times$ & 0.84$\times$ & $+0.22$ \\
-\texttt{shootout-ed25519}  & 0.38$\times$ & 0.58$\times$ & $+0.20$ \\
-\texttt{rust-json}         & 0.62$\times$ & 0.75$\times$ & $+0.13$ \\
-\texttt{rust-compression}  & 0.75$\times$ & 0.87$\times$ & $+0.12$ \\
-\texttt{regex}             & 0.85$\times$ & 0.95$\times$ & $+0.10$ \\
-\texttt{pulldown-cmark}    & 0.75$\times$ & 0.84$\times$ & $+0.09$ \\
-\texttt{gcc-loops}         & 0.74$\times$ & 0.83$\times$ & $+0.09$ \\
-\bottomrule
-\end{tabular}
-\caption{Kernels with the largest \texttt{LLVM/t2} gain when the batch composition switches from leaf-only to walk-up plus BFS (Step 1 $\to$ Step 2).}
-\label{tbl:eval:walkup}
-\end{table}
+\begin{tikzpicture}
+\begin{axis}[
+  xbar,
+  bar width=6pt,
+  width=0.82\textwidth, height=6.8cm,
+  xmin=0, xmax=1.14,
+  ymin=0.4, ymax=7.6,
+  ytick={1,2,3,4,5,6,7},
+  yticklabels={\texttt{gcc-loops},\texttt{pulldown-cmark},\texttt{regex},\texttt{rust-compression},\texttt{rust-json},\texttt{shootout-ed25519},\texttt{hashset}},
+  yticklabel style={font=\footnotesize},
+  xlabel={\texttt{LLVM/t2} (higher is better; 1.0 $=$ LLVM JIT)},
+  xtick={0,0.2,0.4,0.6,0.8,1.0},
+  nodes near coords={\pgfmathprintnumber[fixed,fixed zerofill,precision=2]{\pgfplotspointmeta}},
+  nodes near coords style={font=\scriptsize},
+  legend style={at={(0.5,1.03)}, anchor=south, legend columns=2, font=\footnotesize, draw=black!40},
+  enlarge y limits=false,
+]
+\addplot[draw=black!50, fill=stepone] coordinates {(0.62,7)(0.38,6)(0.62,5)(0.75,4)(0.85,3)(0.75,2)(0.74,1)};
+\addplot[draw=black!50, fill=steptwo] coordinates {(0.84,7)(0.58,6)(0.75,5)(0.87,4)(0.95,3)(0.84,2)(0.83,1)};
+\draw[dashed, black!60] (axis cs:1,0.4) -- (axis cs:1,7.6);
+\legend{Step 1, Step 2}
+\end{axis}
+\end{tikzpicture}
+\caption{Steady-state throughput relative to whole-module LLVM JIT (\texttt{LLVM/t2}) for the seven kernels with the largest gain when batch composition switches from leaf-only to walk-up plus BFS (Step 1 $\to$ Step 2). The dashed line marks parity with LLVM JIT.}
+\label{fig:eval:walkup}
+\end{figure}
 
 The size of the gain tracks the depth of the kernel's call graph. The shootout kernels have shallow graphs. On \texttt{hashset} and \texttt{shootout-ed25519}, the hot work sits one hop above the threshold-tripping leaf. A single walk-up hop captures the caller. A short breadth-first pass pulls in its helpers. On \texttt{shootout-ed25519}, the resulting batch is the cryptographic caller, the modular-arithmetic leaf, and five field-arithmetic helpers. The optimizer inlines the leaf into the caller. The gain is large.
 
@@ -155,27 +164,36 @@ The full configuration adds on-stack replacement (OSR) on top of walk-up and BFS
 
 Across the 39 kernels, the geometric mean of \texttt{t1/t2} rises to \textbf{1.11$\times$} and the geometric mean of \texttt{LLVM/t2} rises to \textbf{0.86$\times$}. Tier-2 with OSR beats tier-1 by approximately 11\% on average and recovers approximately 86\% of LLVM JIT throughput.
 
-The one-shot-caller kernels show the largest swings (Table~\ref{tbl:eval:osr}). The seven kernels with the biggest \texttt{LLVM/t2} jump from Step 2 to Step 3 are all from this category. The two kernels at the top of the table---\texttt{shootout-ctype} and \texttt{blind-sig}---swing more than half of the gap between Step 2 and LLVM JIT. Both kernels sit in both the hot-leaf and one-shot-caller categories. Walk-up at Step 2 produced a large optimizing-tier batch for each. The in-flight invocation never reached the swapped entry, so the batch was wasted. OSR delivers the in-flight migration that closes the remaining gap.
+The one-shot-caller kernels show the largest swings (Figure~\ref{fig:eval:osr}). The seven kernels with the biggest \texttt{LLVM/t2} jump from Step 2 to Step 3 are all from this category. The two kernels at the top of the figure---\texttt{shootout-ctype} and \texttt{blind-sig}---swing more than half of the gap between Step 2 and LLVM JIT. Both kernels sit in both the hot-leaf and one-shot-caller categories. Walk-up at Step 2 produced a large optimizing-tier batch for each. The in-flight invocation never reached the swapped entry, so the batch was wasted. OSR delivers the in-flight migration that closes the remaining gap.
 
-\begin{table}[h]
+\begin{figure}[h]
 \centering
-\small
-\begin{tabular}{l r r r}
-\toprule
-Kernel & Step 2 \texttt{LLVM/t2} & Step 3 \texttt{LLVM/t2} & Swing \\
-\midrule
-\texttt{shootout-ctype}    & 0.37$\times$ & 0.88$\times$ & $+0.51$ \\
-\texttt{blind-sig}         & 0.40$\times$ & 0.80$\times$ & $+0.40$ \\
-\texttt{shootout-random}   & 0.63$\times$ & 1.00$\times$ & $+0.37$ \\
-\texttt{shootout-base64}   & 0.78$\times$ & 0.99$\times$ & $+0.21$ \\
-\texttt{shootout-matrix}   & 0.75$\times$ & 0.95$\times$ & $+0.20$ \\
-\texttt{shootout-ratelimit}& 0.79$\times$ & 0.96$\times$ & $+0.17$ \\
-\texttt{shootout-minicsv}  & 0.79$\times$ & 0.95$\times$ & $+0.16$ \\
-\bottomrule
-\end{tabular}
-\caption{Kernels with the largest \texttt{LLVM/t2} gain when OSR is enabled (Step 2 $\to$ Step 3). All seven are from the one-shot-caller category.}
-\label{tbl:eval:osr}
-\end{table}
+\begin{tikzpicture}
+\begin{axis}[
+  xbar,
+  bar width=6pt,
+  width=0.82\textwidth, height=6.8cm,
+  xmin=0, xmax=1.14,
+  ymin=0.4, ymax=7.6,
+  ytick={1,2,3,4,5,6,7},
+  yticklabels={\texttt{shootout-minicsv},\texttt{shootout-ratelimit},\texttt{shootout-matrix},\texttt{shootout-base64},\texttt{shootout-random},\texttt{blind-sig},\texttt{shootout-ctype}},
+  yticklabel style={font=\footnotesize},
+  xlabel={\texttt{LLVM/t2} (higher is better; 1.0 $=$ LLVM JIT)},
+  xtick={0,0.2,0.4,0.6,0.8,1.0},
+  nodes near coords={\pgfmathprintnumber[fixed,fixed zerofill,precision=2]{\pgfplotspointmeta}},
+  nodes near coords style={font=\scriptsize},
+  legend style={at={(0.5,1.03)}, anchor=south, legend columns=2, font=\footnotesize, draw=black!40},
+  enlarge y limits=false,
+]
+\addplot[draw=black!50, fill=steptwo] coordinates {(0.37,7)(0.40,6)(0.63,5)(0.78,4)(0.75,3)(0.79,2)(0.79,1)};
+\addplot[draw=black!50, fill=stepthree] coordinates {(0.88,7)(0.80,6)(1.00,5)(0.99,4)(0.95,3)(0.96,2)(0.95,1)};
+\draw[dashed, black!60] (axis cs:1,0.4) -- (axis cs:1,7.6);
+\legend{Step 2, Step 3}
+\end{axis}
+\end{tikzpicture}
+\caption{Steady-state throughput relative to whole-module LLVM JIT (\texttt{LLVM/t2}) for the seven kernels with the largest gain when OSR is enabled (Step 2 $\to$ Step 3). All seven are from the one-shot-caller category. The dashed line marks parity with LLVM JIT.}
+\label{fig:eval:osr}
+\end{figure}
 
 The mechanism behind each swing is identical. The outer function is called once. Almost all run-time is spent in one long-running loop. Without OSR, the function-entry slot swap fires after the loop has already started and is therefore observable only on a subsequent call that never happens. With OSR, the loop's back-edge counter saturates while the loop is still running, the worker compiles a continuation entry, and the tier-1 frame jumps into the continuation entry on the next iteration. The remainder of the loop runs in optimizing-tier code.
 
