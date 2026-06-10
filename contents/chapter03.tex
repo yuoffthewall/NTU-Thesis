@@ -50,7 +50,7 @@ Two promotion paths target the two invocation shapes that matter. The first, fun
 
 Figure~\ref{fig:design:arch} walks through the five stages of the pipeline. The first three execute on the user thread at module load and during execution; the last two execute asynchronously on the tier-2 worker thread when a profile counter saturates.
 
-The proposed pipeline coexists with the existing whole-module LLVM AOT path: a module that has already been AOT-compiled to a shared library bypasses tier-1 entirely, so the tiered architecture is a strict addition rather than a replacement.
+The proposed pipeline coexists with the existing whole-module LLVM AOT path. A module that has already been AOT-compiled to a shared library bypasses tier-1 entirely. The two paths suit different cases. Ahead-of-time compilation serves modules known in advance and reused often enough to pay the compile cost once. The tiered path serves first-seen, short-lived modules, where the cost must be paid at request time. The tiered architecture is therefore a strict addition, not a replacement.
 
 \section{Tier-1 Baseline JIT}
 \label{sec:design:tier1}

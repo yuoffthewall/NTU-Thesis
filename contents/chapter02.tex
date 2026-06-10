@@ -33,6 +33,8 @@ The ahead-of-time path runs the frontend at build time. The resulting LLVM modul
 
 The just-in-time path runs the same frontend at module instantiation. The resulting LLVM module is passed through LLVM's optimization pipeline and its just-in-time machine code emitter, and the produced function pointers are bound into the module instance. The path produces code of comparable quality to the ahead-of-time path. The path also pays the full LLVM compile cost on every cold start. That cost is the bottleneck this thesis addresses.
 
+Both compiled paths optimize every function uniformly. Neither observes a runtime profile, so neither distinguishes a hot function from a cold one. The ahead-of-time path absorbs this cost offline, where uniform optimization is acceptable. The just-in-time path pays it at module instantiation, where optimizing functions the input never exercises wastes the user's time.
+
 All three paths share the same module-instance representation and the same host-call dispatch boundary. A wasm-to-host call lands in a stub that marshals arguments from the wasm convention into the host's native convention and back. A host-to-wasm call goes through the runtime's executor to ensure that the trap state and stack guards are correctly maintained. The shared boundary is what allows this thesis to introduce a new compiled path---the tier-1 baseline JIT and selective tier-2 promotion---without changes to the executor's external interfaces.
 
 \section{LLVM Compilation Cost}
@@ -46,7 +48,7 @@ The second source is the size of the input. Compile time scales roughly linearly
 
 The third source is memory footprint. The optimization pipeline holds the entire module in memory and rewrites it in place. Analyses build derived data structures that may rival the module itself in size. The footprint matters because edge deployments routinely run on hosts provisioned with one or two gigabytes of memory across the entire workload, of which compilation may consume a noticeable fraction.
 
-The three sources combine to produce a compile-cost profile that is acceptable when paid once at build time on the AOT path, but is structurally unsuited to a cold-start path. The tiered architecture in Chapter~\ref{ch:design} reduces the up-front cost by routing the cold path through a much smaller code generator and reserving LLVM for the small subset of functions that benefit from its optimization budget.
+The three sources combine to produce a compile-cost profile that is acceptable when paid once at build time on the AOT path, but is structurally unsuited to a cold-start path. The tiered architecture in Chapter~\ref{ch:design} reduces the up-front cost by routing the cold path through a much smaller code generator and reserving LLVM for the small subset of functions that a runtime profile shows to be hot.
 
 \section{A Lightweight Sea-of-Nodes JIT Library}
 \label{sec:bg:ir-lib}
