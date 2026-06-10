@@ -55,7 +55,7 @@ The proposed pipeline coexists with the existing whole-module LLVM AOT path. A m
 \section{Tier-1 Baseline JIT}
 \label{sec:design:tier1}
 
-The tier-1 baseline JIT compiles every defined wasm function at module instantiation, producing native code at low compile cost. The output of each compilation is placed in the \texttt{FuncTable} for use by direct and indirect dispatch. Three design choices distinguish the proposed mechanism: the choice of a lightweight Sea-of-Nodes code generator, a single-pass wasm-to-IR translation strategy with selective PHI emission, and the embedding of profile counters directly into the compiled bodies. The lowering covers the full MVP WebAssembly instruction set plus the reference-type, bulk-memory, and table extensions; SIMD (\texttt{v128}) instructions are not lowered in the current implementation, and modules that use them are rejected at translation time.
+The tier-1 baseline JIT compiles every defined wasm function at module instantiation, producing native code at low compile cost. The output of each compilation is placed in the \texttt{FuncTable} for use by direct and indirect dispatch. Three design choices distinguish the proposed mechanism: the choice of a lightweight Sea-of-Nodes code generator, a single-pass wasm-to-IR translation strategy with selective PHI emission, and the embedding of profile counters directly into the compiled bodies. The lowering covers the full MVP WebAssembly instruction set plus the reference-type, bulk-memory, and table extensions; SIMD (\texttt{v128}) instructions are not lowered in the current implementation, so a function that uses them fails tier-1 compilation.
 
 \subsection{Runtime context and calling convention}
 \label{sec:design:tier1:context}
