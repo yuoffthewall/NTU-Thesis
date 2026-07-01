@@ -23,7 +23,17 @@
 % 封面與口試審定
 % Cover and Verification Letter
 \makecover                          % 論文封面（Cover）
-\makeverification                   % 口試委員審定書（Verification Letter）
+
+% 口試委員審定書（Verification Letter）
+% Use the scanned A4 verification letter while preserving roman page label i.
+\clearpage
+\phantomsection
+\pagenumbering{roman}
+\addcontentsline{toc}{chapter}{Verification Letter from the Oral Examination Committee}
+\includepdf[
+  pages=1,
+  pagecommand={\thispagestyle{plain}}
+]{front/verification-letter.pdf}
 
 % 致謝與論文摘要
 % Acknowledgement and Abstract
